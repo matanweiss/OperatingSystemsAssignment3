@@ -77,14 +77,17 @@ int startServer(char *PORT)
 
         while (1)
         {
-            printf("Enter a : ");
+            printf("Enter a message: \n");
 
             poll(pfds, nfds, -1);
             if (pfds[0].revents & POLLIN)
             {
                 int result = got_user_input(&clientSocket);
                 if (result == -1)
+                {
                     printf("got_user_input() failed\n");
+                    break;
+                }
                 else if (result == 1)
                     break;
             }
@@ -92,7 +95,10 @@ int startServer(char *PORT)
             {
                 int result = got_client_input(&clientSocket);
                 if (result == -1)
+                {
                     printf("got_client_input() failed\n");
+                    break;
+                }
                 else if (result == 1)
                     break;
             }

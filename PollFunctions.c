@@ -50,7 +50,7 @@ int got_client_input(int *socket)
         return -1;
     }
     buffer[bytesReceived] = '\0';
-    printf("message received: %s\n", buffer);
+    printf("\nmessage received: %s\n", buffer);
     if (!strcmp(buffer, "exit"))
         return 1;
     return 0;

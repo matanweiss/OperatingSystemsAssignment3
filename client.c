@@ -38,21 +38,25 @@ int startClient(char *IP, char *PORT)
     int nfds = 2;
     struct pollfd pfds[2];
 
+    // save the stdin file in the poll file descriptor
+    pfds[0].fd = STDIN_FILENO;
+    pfds[1].fd = sock;
+    pfds[0].events = POLLIN;
+    pfds[1].events = POLLIN;
+
     while (1)
     {
-        printf("Enter a message: ");
-        // save the stdin file in the poll file descriptor
-        pfds[0].fd = STDIN_FILENO;
-        pfds[1].fd = sock;
-        pfds[0].events = POLLIN;
-        pfds[1].events = POLLIN;
+        printf("Enter a message: \n");
 
         poll(pfds, nfds, -1);
         if (pfds[0].revents & POLLIN)
         {
             int result = got_user_input(&sock);
             if (result == -1)
+            {
                 printf("got_user_input() failed\n");
+                break;
+            }
             else if (result == 1)
                 break;
         }
@@ -60,7 +64,10 @@ int startClient(char *IP, char *PORT)
         {
             int result = got_client_input(&sock);
             if (result == -1)
+            {
                 printf("got_client_input() failed\n");
+                break;
+            }
             else if (result == 1)
                 break;
         }

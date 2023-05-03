@@ -19,7 +19,5 @@
 
 int startClient(char *, char *);
 int startServer(char *);
-void *wait_for_user_input(void *);
-void *wait_for_remote_data(void *);
 int got_user_input(int *);
 int got_client_input(int *);
