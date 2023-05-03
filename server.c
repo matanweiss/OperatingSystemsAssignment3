@@ -109,3 +109,139 @@ int startServer(char *PORT)
     }
     return 0;
 }
+
+int startServerPerformance(int port, char *type, char *param, int quiet)
+{
+    int sock;
+    int isUDP = 0;
+    char *typeToPrint;
+    if (!strcmp(type, "ipv4") && !strcmp(param, "tcp"))
+    {
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+        typeToPrint = "ipv4_tcp";
+    }
+    else if (!strcmp(type, "ipv4") && !strcmp(param, "udp"))
+    {
+        sock = socket(AF_INET, SOCK_DGRAM, 0);
+        isUDP = 1;
+        typeToPrint = "ipv4_udp";
+    }
+    else if (!strcmp(type, "ipv6") && !strcmp(param, "tcp"))
+    {
+        sock = socket(AF_INET6, SOCK_STREAM, 0);
+        typeToPrint = "ipv6_tcp";
+    }
+    else if (!strcmp(type, "ipv6") && !strcmp(param, "udp"))
+    {
+        sock = socket(AF_INET6, SOCK_DGRAM, 0);
+        isUDP = 1;
+        typeToPrint = "ipv6_udp";
+    }
+    else if (!strcmp(type, "uds") && !strcmp(param, "dgram"))
+    {
+        sock = socket(AF_UNIX, SOCK_DGRAM, 0);
+        isUDP = 1;
+        typeToPrint = "uds_dgram";
+    }
+    else if (!strcmp(type, "uds") && !strcmp(param, "stream"))
+    {
+        sock = socket(AF_UNIX, SOCK_STREAM, 0);
+        typeToPrint = "uds_stream";
+    }
+    else if (!strcmp(type, "mmap"))
+    {
+        typeToPrint = "mmap";
+    }
+    else if (!strcmp(type, "pipe"))
+    {
+        typeToPrint = "pipe";
+    }
+    else
+    {
+        printf("only the following types and params are allowed:\n");
+        printf("ipv4 tcp\n");
+        printf("ipv4 udp\n");
+        printf("ipv6 tcp\n");
+        printf("ipv6 udp\n");
+        printf("uds dgram\n");
+        printf("uds stream\n");
+        printf("mmap [filename]\n");
+        printf("pipe [filename]\n");
+        return -1;
+    }
+    if (sock == -1)
+    {
+        perror("socket() failed");
+        return 1;
+    }
+    receiveFile(sock, isUDP, port, quiet, typeToPrint);
+    return 0;
+}
+
+int receiveFile(int sock, int isUDP, int port, int quiet, char *typeToPrint)
+{
+    struct sockaddr_in Address;
+    memset(&Address, 0, sizeof(Address));
+
+    Address.sin_family = AF_INET;
+    Address.sin_addr.s_addr = INADDR_ANY;
+    Address.sin_port = htons(port);
+
+    int bindResult = bind(sock, (struct sockaddr *)&Address, sizeof(Address));
+    if (bindResult == -1)
+    {
+        perror("bind() failed");
+        close(sock);
+        return -1;
+    }
+    if (!isUDP && listen(sock, 1) == -1)
+    {
+        perror("listen() failed");
+        close(sock);
+        return -1;
+    }
+    while (1)
+    {
+        // accept incoming connection
+        printf("Waiting for connections...\n");
+        struct sockaddr_in senderAddress; //
+        socklen_t senderAddressLen = sizeof(senderAddress);
+        memset(&senderAddress, 0, sizeof(senderAddress));
+        senderAddressLen = sizeof(senderAddress);
+        int senderSocket = accept(sock, (struct sockaddr *)&senderAddress, &senderAddressLen);
+        if (senderSocket == -1)
+        {
+            perror("accept() failed");
+            close(sock);
+            return -1;
+        }
+        printf("client connection accepted\n");
+
+        struct timeval start, end;
+        gettimeofday(&start, NULL);
+        FILE *fd = fopen('received.txt', 'a');
+        char buffer[BUFFER_SIZE] = {0};
+        size_t n = 0;
+        while (n < FILE_SIZE)
+        {
+            if ((n += recv(senderSocket, buffer, BUFFER_SIZE, 0)) < 0)
+            {
+                perror("recv() failed");
+                return -1;
+            }
+            // if (!strcmp(buffer, "exit"))
+            // {
+            //     printTimes(times);
+            //     return 0;
+            // }
+            fprintf(fd, buffer);
+        }
+        gettimeofday(&end, NULL);
+        if (quiet)
+        {
+            printf("%s\n", typeToPrint);
+        }
+    }
+    close(sock);
+    return 0;
+}

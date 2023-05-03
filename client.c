@@ -75,3 +75,6 @@ int startClient(char *IP, char *PORT)
     close(sock);
     return 0;
 }
+int startClientPerformance(char *ip, int port, char *type, char *param)
+{
+}
