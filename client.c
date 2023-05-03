@@ -35,25 +35,36 @@ int startClient(char *IP, char *PORT)
     }
     printf("connected to the server\n");
 
-    pthread_t thread1, thread2;
-    int id;
-    // Create thread 1 to wait for user input
-    id = pthread_create(&thread1, NULL, wait_for_user_input, (void *)&sock);
-    if (id != 0)
+    int nfds = 2;
+    struct pollfd pfds[2];
+
+    while (1)
     {
-        printf("Error creating thread 1\n");
-        return 1;
+        printf("Enter a message: ");
+        // save the stdin file in the poll file descriptor
+        pfds[0].fd = STDIN_FILENO;
+        pfds[1].fd = sock;
+        pfds[0].events = POLLIN;
+        pfds[1].events = POLLIN;
+
+        poll(pfds, nfds, -1);
+        if (pfds[0].revents & POLLIN)
+        {
+            int result = got_user_input(&sock);
+            if (result == -1)
+                printf("got_user_input() failed\n");
+            else if (result == 1)
+                break;
+        }
+        if (pfds[1].revents & POLLIN)
+        {
+            int result = got_client_input(&sock);
+            if (result == -1)
+                printf("got_client_input() failed\n");
+            else if (result == 1)
+                break;
+        }
     }
-    // Create thread 2 to wait for remote data
-    id = pthread_create(&thread2, NULL, wait_for_remote_data, (void *)&sock);
-    if (id != 0)
-    {
-        printf("Error creating thread 2\n");
-        return 1;
-    }
-    // Wait for both threads to finish
-    pthread_join(thread1, NULL);
-    pthread_join(thread2, NULL);
     close(sock);
     return 0;
 }
