@@ -1,6 +1,6 @@
 #include "communications.h"
 
-int startServer(char *PORT)
+int startServer(int port)
 {
     // create a TCP Connection
     struct sockaddr_in serverAddress;
@@ -20,7 +20,6 @@ int startServer(char *PORT)
     // any IP at this port (any address to accept incoming messages)
     serverAddress.sin_addr.s_addr = INADDR_ANY;
     // the "htons" convert the port to network endian (big endian)
-    int port = atoi(PORT);
     serverAddress.sin_port = htons(port);
 
     // Often the activation of the method bind() falls with the message "Address already in use".
@@ -112,40 +111,47 @@ int startServer(char *PORT)
 
 int startServerPerformance(int port, char *type, char *param, int quiet)
 {
-    int sock;
+    int ipType = 0;
+    // int sock;
     int isUDP = 0;
     char *typeToPrint;
     if (!strcmp(type, "ipv4") && !strcmp(param, "tcp"))
     {
-        sock = socket(AF_INET, SOCK_STREAM, 0);
+        ipType = AF_INET;
+        // sock = socket(AF_INET, SOCK_STREAM, 0);
         typeToPrint = "ipv4_tcp";
     }
     else if (!strcmp(type, "ipv4") && !strcmp(param, "udp"))
     {
-        sock = socket(AF_INET, SOCK_DGRAM, 0);
+        // sock = socket(AF_INET, SOCK_DGRAM, 0);
+        ipType = AF_INET;
         isUDP = 1;
         typeToPrint = "ipv4_udp";
     }
     else if (!strcmp(type, "ipv6") && !strcmp(param, "tcp"))
     {
-        sock = socket(AF_INET6, SOCK_STREAM, 0);
+        ipType = AF_INET6;
+        // sock = socket(AF_INET6, SOCK_STREAM, 0);
         typeToPrint = "ipv6_tcp";
     }
     else if (!strcmp(type, "ipv6") && !strcmp(param, "udp"))
     {
-        sock = socket(AF_INET6, SOCK_DGRAM, 0);
+        ipType = AF_INET6;
+        // sock = socket(AF_INET6, SOCK_DGRAM, 0);
         isUDP = 1;
         typeToPrint = "ipv6_udp";
     }
     else if (!strcmp(type, "uds") && !strcmp(param, "dgram"))
     {
-        sock = socket(AF_UNIX, SOCK_DGRAM, 0);
+        ipType = AF_UNIX;
+        // sock = socket(AF_UNIX, SOCK_DGRAM, 0);
         isUDP = 1;
         typeToPrint = "uds_dgram";
     }
     else if (!strcmp(type, "uds") && !strcmp(param, "stream"))
     {
-        sock = socket(AF_UNIX, SOCK_STREAM, 0);
+        ipType = AF_UNIX;
+        // sock = socket(AF_UNIX, SOCK_STREAM, 0);
         typeToPrint = "uds_stream";
     }
     else if (!strcmp(type, "mmap"))
@@ -169,13 +175,111 @@ int startServerPerformance(int port, char *type, char *param, int quiet)
         printf("pipe [filename]\n");
         return -1;
     }
+    // if (sock == -1)
+    // {
+    //     perror("socket() failed");
+    //     return 1;
+    // }
+    // receiveFile(sock, isUDP, port, quiet, typeToPrint);
+    return receiveFile2(isUDP, ipType, port, quiet, typeToPrint);
+}
+
+int receiveFile2(int isUDP, int ipType, int port, int quiet, char *typeToPrint)
+{
+    int sock;
+    if (isUDP)
+        sock = socket(ipType, SOCK_DGRAM, IPPROTO_UDP);
+    else
+        sock = socket(ipType, SOCK_STREAM, IPPROTO_TCP);
+
     if (sock == -1)
     {
         perror("socket() failed");
-        return 1;
+        return -1;
     }
-    receiveFile(sock, isUDP, port, quiet, typeToPrint);
-    return 0;
+
+    struct sockaddr_in Address;
+    memset(&Address, 0, sizeof(Address));
+
+    Address.sin_family = ipType;
+    Address.sin_addr.s_addr = INADDR_ANY;
+    Address.sin_port = htons(port);
+
+    int bindResult = bind(sock, (struct sockaddr *)&Address, sizeof(Address));
+    if (bindResult == -1)
+    {
+        perror("bind() failed");
+        close(sock);
+        return -1;
+    }
+    if (!isUDP && listen(sock, 1) == -1)
+    {
+        perror("listen() failed");
+        close(sock);
+        return -1;
+    }
+
+    while (1)
+    {
+        // accept incoming connection
+        printf("Waiting for connections...\n");
+        struct sockaddr_in senderAddress; //
+        socklen_t senderAddressLen = sizeof(senderAddress);
+        memset(&senderAddress, 0, sizeof(senderAddress));
+        senderAddressLen = sizeof(senderAddress);
+
+        int senderSocket;
+        if (!isUDP)
+        {
+            senderSocket = accept(sock, (struct sockaddr *)&senderAddress, &senderAddressLen);
+            if (senderSocket == -1)
+            {
+                perror("accept() failed");
+                close(sock);
+                return -1;
+            }
+            printf("client connection accepted\n");
+        }
+        struct timeval start, end;
+        gettimeofday(&start, NULL);
+        FILE *fd = fopen("received.txt", "a");
+        char buffer[BUFFER_SIZE] = {0};
+        size_t n = 0;
+        while (n < FILE_SIZE)
+        {
+            if (isUDP)
+            {
+                if ((n += recvfrom(sock, buffer, BUFFER_SIZE, 0,
+                                   (struct sockaddr *)&senderAddress, &senderAddressLen)) < 0)
+                {
+
+                    perror("recv() failed");
+                    return -1;
+                }
+            }
+            else
+            {
+                if ((n += recv(senderSocket, buffer, BUFFER_SIZE, 0)) < 0)
+                {
+                    perror("recv() failed");
+                    return -1;
+                }
+            }
+            fprintf(fd, "%s", buffer);
+        }
+        gettimeofday(&end, NULL);
+        // measuring the time to it took to receive the message
+        // double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+        double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec);
+
+        if (quiet)
+        {
+            printf("%s, %f\n", typeToPrint, timeDelta);
+        }
+        fclose(fd);
+        close(senderSocket);
+        printf("\n");
+    }
 }
 
 int receiveFile(int sock, int isUDP, int port, int quiet, char *typeToPrint)
@@ -219,7 +323,7 @@ int receiveFile(int sock, int isUDP, int port, int quiet, char *typeToPrint)
 
         struct timeval start, end;
         gettimeofday(&start, NULL);
-        FILE *fd = fopen('received.txt', 'a');
+        FILE *fd = fopen("received.txt", "a");
         char buffer[BUFFER_SIZE] = {0};
         size_t n = 0;
         while (n < FILE_SIZE)
@@ -234,13 +338,16 @@ int receiveFile(int sock, int isUDP, int port, int quiet, char *typeToPrint)
             //     printTimes(times);
             //     return 0;
             // }
-            fprintf(fd, buffer);
+            fprintf(fd, "%s", buffer);
         }
         gettimeofday(&end, NULL);
         if (quiet)
         {
             printf("%s\n", typeToPrint);
         }
+        fclose(fd);
+        close(senderSocket);
+        printf("\n");
     }
     close(sock);
     return 0;

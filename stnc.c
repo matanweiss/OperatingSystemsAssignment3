@@ -23,6 +23,7 @@ int main(int argc, char *argv[])
             client = 1;
             port = atoi(argv[++i]);
             ip = argv[++i];
+            continue;
         }
         if (!strcmp(argv[i], "-s"))
         {
@@ -33,6 +34,7 @@ int main(int argc, char *argv[])
             }
             server = 1;
             port = atoi(argv[++i]);
+            continue;
         }
         if (!strcmp(argv[i], "-p"))
         {
@@ -44,18 +46,20 @@ int main(int argc, char *argv[])
             performance = 1;
             type = argv[++i];
             param = argv[++i];
+            continue;
         }
         if (!strcmp(argv[i], "-q"))
         {
+
             if (!performance)
             {
                 printf("usage:  ./stnc -c [IP] [PORT] -p [type] [param] -q\n\t\tor\n\t./stnc -s [PORT] -p [type] [param] -q\n");
                 return -1;
             }
             quiet = 1;
+            continue;
         }
     }
-
     if (client)
     {
         if (performance)
