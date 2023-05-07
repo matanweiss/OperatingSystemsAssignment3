@@ -17,9 +17,9 @@
 #include <unistd.h>
 #include <poll.h>
 #include <sys/time.h>
+#include <time.h>
 
-// #define FILE_SIZE 1024 * 1024 * 100
-#define FILE_SIZE 100
+#define FILE_SIZE 1024 * 1024 * 100
 #define BUFFER_SIZE 1024
 
 int startClient(char *, int);

@@ -205,6 +205,10 @@ int receiveFile2(int isUDP, int ipType, int port, int quiet, char *typeToPrint)
     Address.sin_addr.s_addr = INADDR_ANY;
     Address.sin_port = htons(port);
 
+    int enable = 1;
+    setsockopt(sock, IPPROTO_IP, IP_HDRINCL,
+               &enable, sizeof(enable));
+
     int bindResult = bind(sock, (struct sockaddr *)&Address, sizeof(Address));
     if (bindResult == -1)
     {
@@ -242,8 +246,9 @@ int receiveFile2(int isUDP, int ipType, int port, int quiet, char *typeToPrint)
         }
         struct timeval start, end;
         gettimeofday(&start, NULL);
-        FILE *fd = fopen("received.txt", "a");
-        char buffer[BUFFER_SIZE] = {0};
+        FILE *fd = fopen("received.txt", "w");
+        char buffer[BUFFER_SIZE];
+        // char buffer[BUFFER_SIZE] = {0};
         size_t n = 0;
         while (n < FILE_SIZE)
         {
@@ -266,11 +271,15 @@ int receiveFile2(int isUDP, int ipType, int port, int quiet, char *typeToPrint)
                 }
             }
             fprintf(fd, "%s", buffer);
+            // printf("%s", buffer);
+            printf("%ld\n", n);
+            printf("%ld\n", strlen(buffer));
         }
+
         gettimeofday(&end, NULL);
         // measuring the time to it took to receive the message
-        // double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-        double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec);
+        double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+        // double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec);
 
         if (quiet)
         {

@@ -216,17 +216,30 @@ int sendFile2(int port, char *ip, int isUDP, int ipType)
 
     printf("connected to receiver\n");
 
-    char message[FILE_SIZE] = "";
+    srand(time(NULL)); // Initialization, should only be called once.
+    FILE *fd = fopen("message.txt", "w+");
+    char message[100 * BUFFER_SIZE];
     for (size_t i = 0; i < FILE_SIZE - 1; i++)
     {
-        message[i] = 'H';
+        char randomChar = (rand() % 126) + 1;
+        fprintf(fd, "%c", randomChar);
     }
-    message[FILE_SIZE - 1] = 0;
-    if (send(sock, message, sizeof(char) * FILE_SIZE, 0) == -1)
+    fprintf(fd, "%c", 0);
+    fseek(fd, 0, SEEK_SET);
+    for (size_t i = 0; i < FILE_SIZE; i += (100 * BUFFER_SIZE))
     {
-        perror("send() failed");
-        return -1;
+        fread(message, 1, 100 * BUFFER_SIZE, fd);
+        // message[BUFFER_SIZE - 1] = 0;
+        if (send(sock, message, sizeof(message), 0) == -1)
+        {
+            perror("send() failed");
+            return -1;
+        }
+        bzero(message, BUFFER_SIZE);
     }
+
+    fclose(fd);
+    close(sock);
     printf("message sent\n");
     return 0;
 }
