@@ -55,3 +55,15 @@ int got_client_input(int *socket)
         return 1;
     return 0;
 }
+
+int hash_file(FILE *fd, unsigned char *hash)
+{
+    MD5_CTX mdContext;
+    int bytes;
+    unsigned char data[1024];
+
+    MD5_Init(&mdContext);
+    while ((bytes = fread(data, 1, 1024, fd)) != 0)
+        MD5_Update(&mdContext, data, bytes);
+    MD5_Final(hash, &mdContext);
+}

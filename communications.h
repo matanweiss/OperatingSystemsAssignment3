@@ -18,6 +18,7 @@
 #include <poll.h>
 #include <sys/time.h>
 #include <time.h>
+#include <openssl/md5.h>
 
 #define FILE_SIZE 1024 * 1024 * 100
 #define BUFFER_SIZE 1024
@@ -30,6 +31,9 @@ int startChatServer(int port);
 
 int startInfoClient(char *ip, int port, char *type, char *param);
 int startInfoServer(int port, int quiet);
+
+int checkPerformance(char *type, char *param, int *ipType, int *isUDP);
+int hash_file(FILE *fd, unsigned char *hash);
 
 int startClient2(char *, int);
 int startServer2(int, int);

@@ -148,30 +148,18 @@ int startInfoServer(int port, int quiet)
         printf("The server is conected\n");
 
         // getting the type and param comunication
-        char buffer[10] = {0};
-        if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0)
+        int ipType, isUDP;
+        if (recv(clientSocket, &ipType, sizeof(int), 0) < 0)
         {
             perror("recv() failed");
             return -1;
         }
-        char type[10];
-        size_t i = 0;
-        while (buffer[i] != '_')
+        if (recv(clientSocket, &isUDP, sizeof(int), 0) < 0)
         {
-            type[i] = buffer[i];
-            i++;
+            perror("recv() failed");
+            return -1;
         }
-        type[i] = 0;
-        char param[10];
-        i++;
-        size_t j = 0;
-        while (buffer[i] != 0)
-        {
-            param[j] = buffer[i];
-            i++;
-            j++;
-        }
-        param[j] = 0;
+        
     }
     return 0;
 }

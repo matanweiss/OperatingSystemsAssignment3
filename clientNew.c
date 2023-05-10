@@ -89,31 +89,98 @@ int startChatClient(char *ip, int port)
 int startInfoClient(char *ip, int port, char *type, char *param)
 {
     printf("starting the client\n");
-    // creating a new socket
+    // creating the info socket
     int clientSocket = createClientSocket(ip, port, AF_INET, 0);
     if (clientSocket == -1)
         return -1;
 
-    // send the type and param to the server, in order to start another connection
-    char massege[10];
-    size_t i = 0;
-    while (type[i] != 0)
-    {
-        massege[i] = type[i];
-        i++;
-    }
-    size_t j = 0;
-    massege[i] = '_';
-    i++;
-    while (param[j] != 0)
-    {
-        massege[i] = param[j];
-        i++;
-        j++;
-    }
-    massege[i] = 0;
-    printf("%s\n", massege);
-    send(clientSocket, massege, strlen(massege), 0);
+    int ipType, isUDP;
+    if (checkPerformance(type, param, &ipType, &isUDP) == -1)
+        return -1;
+    // send the info to the server before we send the 100MB data
+    send(clientSocket, &ipType, sizeof(int), 0);
+    send(clientSocket, &isUDP, sizeof(int), 0);
 
+    sleep(2);
+
+    // creating the data socket
+    int senderSocket = createClientSocket(ip, port, ipType, isUDP);
+    if (senderSocket == -1)
+    {
+        close(clientSocket);
+        return -1;
+    }
+
+    // generate 100MB file
+    srand(time(NULL)); // Initialization, should only be called once.
+    FILE *fd = fopen("message.txt", "w+");
+    char message[100 * BUFFER_SIZE];
+    for (size_t i = 0; i < FILE_SIZE - 1; i++)
+    {
+        char randomChar = (rand() % 255) + 1;
+        fprintf(fd, "%c", randomChar);
+    }
+    fprintf(fd, "%c", 0);
+
+    // hashing the file according to md5 algorithm
+    unsigned char hash[MD5_DIGEST_LENGTH];
+    hash_file(fd, hash);
+    send(clientSocket, hash, sizeof(MD5_DIGEST_LENGTH), 0);
+
+    return 0;
+}
+
+int checkPerformance(char *type, char *param, int *ipType, int *isUDP)
+{
+    // int sock;
+    *(isUDP) = 0;
+    *(ipType) = 0;
+    if (!strcmp(type, "ipv4") && !strcmp(param, "tcp"))
+    {
+        *(ipType) = AF_INET;
+    }
+    else if (!strcmp(type, "ipv4") && !strcmp(param, "udp"))
+    {
+        *(ipType) = AF_INET;
+        *(isUDP) = 1;
+    }
+    else if (!strcmp(type, "ipv6") && !strcmp(param, "tcp"))
+    {
+        *(ipType) = AF_INET6;
+    }
+    else if (!strcmp(type, "ipv6") && !strcmp(param, "udp"))
+    {
+        *(ipType) = AF_INET6;
+        *(isUDP) = 1;
+    }
+    else if (!strcmp(type, "uds") && !strcmp(param, "dgram"))
+    {
+        *(ipType) = AF_UNIX;
+        *(isUDP) = 1;
+    }
+    else if (!strcmp(type, "uds") && !strcmp(param, "stream"))
+    {
+        *(ipType) = AF_UNIX;
+        // sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    }
+    else if (!strcmp(type, "mmap"))
+    {
+    }
+    else if (!strcmp(type, "pipe"))
+    {
+    }
+    else
+    {
+        printf("only the following types and params are allowed:\n");
+        printf("ipv4 tcp\n");
+        printf("ipv4 udp\n");
+        printf("ipv6 tcp\n");
+        printf("ipv6 udp\n");
+        printf("uds dgram\n");
+        printf("uds stream\n");
+        printf("mmap [filename]\n");
+        printf("pipe [filename]\n");
+        return -1;
+    }
     return 0;
 }
