@@ -132,12 +132,7 @@ int startClientPerformance(char *ip, int port, char *type, char *param)
         printf("pipe [filename]\n");
         return -1;
     }
-    // if (sock == -1)
-    // {
-    //     perror("socket() failed");
-    //     return 1;
-    // }
-    // sendFile(sock, port, ip);
+
     return sendFile2(port, ip, isUDP, ipType);
 }
 

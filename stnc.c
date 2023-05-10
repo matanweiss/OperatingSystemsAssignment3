@@ -21,8 +21,8 @@ int main(int argc, char *argv[])
                 return -1;
             }
             client = 1;
-            port = atoi(argv[++i]);
             ip = argv[++i];
+            port = atoi(argv[++i]);
             continue;
         }
         if (!strcmp(argv[i], "-s"))
@@ -38,41 +38,47 @@ int main(int argc, char *argv[])
         }
         if (!strcmp(argv[i], "-p"))
         {
-            if (argc <= i + 2)
-            {
-                printf("usage:  ./stnc -c [IP] [PORT] -p [type] [param] -q\n\t\tor\n\t./stnc -s [PORT] -p [type] [param] -q\n");
-                return -1;
-            }
             performance = 1;
-            type = argv[++i];
-            param = argv[++i];
+            if (client)
+            {
+                if (argc <= i + 2)
+                {
+                    printf("usage: ./stnc -c [IP] [PORT] -p [type] [param]\n");
+                    return -1;
+                }
+                type = argv[++i];
+                param = argv[++i];
+            }
             continue;
         }
         if (!strcmp(argv[i], "-q"))
         {
 
-            if (!performance)
+            if (client)
             {
-                printf("usage:  ./stnc -c [IP] [PORT] -p [type] [param] -q\n\t\tor\n\t./stnc -s [PORT] -p [type] [param] -q\n");
+                printf("usage: ./stnc -c [IP] [PORT] -p [type] [param] \n\t\tor\n\t./stnc -s [PORT] -p -q\n");
                 return -1;
             }
             quiet = 1;
             continue;
         }
     }
+    if (quiet && !performance)
+        printf("usage: ./stnc -s [PORT] -p -q\n");
+
     if (client)
     {
         if (performance)
-            startClientPerformance(ip, port, type, param);
+            startInfoClient(ip, port, type, param);
         else
-            startClient(ip, port);
+            startChatClient(ip, port);
     }
     else if (server)
     {
         if (performance)
-            startServerPerformance(port, type, param, quiet);
+            startInfoServer(port, quiet);
         else
-            startServer(port);
+            startChatServer(port);
     }
     else
     {

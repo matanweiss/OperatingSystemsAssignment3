@@ -1,6 +1,6 @@
 CC=gcc
 FLAGS=-Wall -g -pthread -o
-COMMUNICATIONS=client.c server.c PollFunctions.c
+COMMUNICATIONS=clientNew.c serverNew.c PollFunctions.c
 
 all: stnc
 
