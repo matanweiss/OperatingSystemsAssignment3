@@ -1,8 +1,7 @@
 #include "communications.h"
 
-int got_user_input(int *socket)
+int got_user_input(int sock)
 {
-    int sock = *socket;
     char buffer[1024];
 
     scanf("%s", buffer);
@@ -32,9 +31,8 @@ int got_user_input(int *socket)
     return 0;
 }
 
-int got_client_input(int *socket)
+int got_client_input(int sock)
 {
-    int sock = *socket;
     char buffer[1024];
     int bytesReceived = recv(sock, buffer, 1024, 0);
     // If the method returns -1 then there is an error.

@@ -101,16 +101,6 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     send(clientSocket, &ipType, sizeof(int), 0);
     send(clientSocket, &isUDP, sizeof(int), 0);
 
-    sleep(2);
-
-    // creating the data socket
-    int senderSocket = createClientSocket(ip, port, ipType, isUDP);
-    if (senderSocket == -1)
-    {
-        close(clientSocket);
-        return -1;
-    }
-
     // generate 100MB file
     srand(time(NULL)); // Initialization, should only be called once.
     FILE *fd = fopen("message.txt", "w+");
@@ -126,6 +116,22 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     unsigned char hash[MD5_DIGEST_LENGTH];
     hash_file(fd, hash);
     send(clientSocket, hash, sizeof(MD5_DIGEST_LENGTH), 0);
+
+    sleep(2);
+
+    // creating the data socket
+    int senderSocket = createClientSocket(ip, port, ipType, isUDP);
+    if (senderSocket == -1)
+    {
+        close(clientSocket);
+        return -1;
+    }
+
+    // send the file
+    if (send_file(fd) == -1)
+    {
+        
+    }
 
     return 0;
 }

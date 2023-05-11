@@ -139,8 +139,8 @@ int startInfoServer(int port, int quiet)
         memset(&clientAddress, 0, sizeof(clientAddress));
         clientAddressLen = sizeof(clientAddress);
 
-        int clientSocket = accept(infoSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
-        if (clientSocket == -1)
+        int clientChatSocket = accept(infoSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
+        if (clientChatSocket == -1)
         {
             perror("accept() failed");
             return -1;
@@ -149,17 +149,91 @@ int startInfoServer(int port, int quiet)
 
         // getting the type and param comunication
         int ipType, isUDP;
-        if (recv(clientSocket, &ipType, sizeof(int), 0) < 0)
+        if (recv(clientChatSocket, &ipType, sizeof(int), 0) < 0)
         {
             perror("recv() failed");
             return -1;
         }
-        if (recv(clientSocket, &isUDP, sizeof(int), 0) < 0)
+        if (recv(clientChatSocket, &isUDP, sizeof(int), 0) < 0)
         {
             perror("recv() failed");
             return -1;
         }
-        
+        // getting the hash
+        unsigned char clientHash[MD5_DIGEST_LENGTH];
+        if (recv(clientChatSocket, clientHash, MD5_DIGEST_LENGTH, 0) < 0)
+        {
+            perror("recv() failed");
+            return -1;
+        }
+
+        int newPort = 12000;
+        if (port == 12000)
+            newPort = 13000;
+        int dataSocket = createServerSocket(newPort, ipType, isUDP);
+        if (dataSocket == -1)
+        {
+            close(clientChatSocket);
+            close(infoSocket);
+            return -1;
+        }
+        int clientDataSocket;
+        struct sockaddr_in clientDataAddress;
+        socklen_t clientDataAddressLen = sizeof(clientDataAddress);
+
+        memset(&clientDataAddress, 0, sizeof(clientDataAddress));
+        clientDataAddressLen = sizeof(clientDataAddress);
+        if (isUDP)
+        {
+            clientDataSocket = dataSocket;
+        }
+        else
+        {
+            clientDataSocket = accept(dataSocket, (struct sockaddr *)&clientDataAddress, &clientDataAddressLen);
+            if (clientDataSocket == -1)
+            {
+                perror("accept() failed");
+                return -1;
+            }
+            printf("The server is conected\n");
+        }
+
+        int nfds = 2;
+        struct pollfd pfds[2];
+        // save the stdin file in the poll file descriptor
+        pfds[0].fd = clientChatSocket;
+        pfds[0].events = POLLIN;
+        pfds[1].fd = clientDataSocket;
+        pfds[1].events = POLLIN;
+
+        while (1)
+        {
+            printf("Receiving the file: \n");
+
+            poll(pfds, nfds, -1);
+            if (pfds[0].revents & POLLIN)
+            {
+                int result = got_chat_input(&clientChatSocket);
+                if (result == -1)
+                {
+                    printf("got_user_input() failed\n");
+                    break;
+                }
+                else if (result == 1)
+                    break;
+            }
+            if (pfds[1].revents & POLLIN)
+            {
+                int result = got_data_input(&clientDataSocket);
+                if (result == -1)
+                {
+                    printf("got_client_input() failed\n");
+                    break;
+                }
+                else if (result == 1)
+                    break;
+            }
+        }
     }
     return 0;
 }
