@@ -189,7 +189,6 @@ int startInfoServer(int port, int quiet)
         }
         else
         {
-            printf("hi\n");
             clientDataSocket = accept(dataSocket, (struct sockaddr *)&clientDataAddress, &clientDataAddressLen);
             if (clientDataSocket == -1)
             {
@@ -222,7 +221,7 @@ int startInfoServer(int port, int quiet)
                 int result = got_chat_input(clientChatSocket);
                 if (result == -1)
                 {
-                    printf("got_user_input() failed\n");
+                    printf("got_chat_input() failed\n");
                     break;
                 }
                 // else if (result == 1)
@@ -230,11 +229,10 @@ int startInfoServer(int port, int quiet)
             }
             if (pfds[1].revents & POLLIN)
             {
-                printf("test1\n");
                 int result = got_data_input(clientDataSocket, buffer, &clientDataAddress, &clientDataAddressLen);
                 if (result == -1)
                 {
-                    printf("got_client_input() failed\n");
+                    printf("got_data_input() failed\n");
                     break;
                 }
                 printf("%s\n", buffer);

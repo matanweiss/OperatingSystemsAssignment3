@@ -24,7 +24,8 @@
 #define BUFFER_SIZE 1024
 
 int createServerSocket(int port, int ipType, int isUDP);
-int createClientSocket(char *ip, int port, int ipType, int isUDP);
+int createClientSocket(char *ip, int port, int ipType, int isUDP,struct sockaddr_in * Address);
+
 
 int startChatClient(char *ip, int port);
 int startChatServer(int port);

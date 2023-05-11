@@ -1,6 +1,6 @@
 #include "communications.h"
 
-int createClientSocket(char *ip, int port, int ipType, int isUDP)
+int createClientSocket(char *ip, int port, int ipType, int isUDP,struct sockaddr_in * Address)
 {
     int sock;
     if (isUDP)
@@ -13,19 +13,18 @@ int createClientSocket(char *ip, int port, int ipType, int isUDP)
         perror("socket() failed");
         return -1;
     }
-    struct sockaddr_in Address;
-    memset(&Address, 0, sizeof(Address));
+    memset(Address, 0, sizeof(struct sockaddr_in));
 
-    Address.sin_family = ipType;
-    Address.sin_port = htons(port);
-    if (inet_pton(ipType, (const char *)ip, &Address.sin_addr) <= 0)
+    Address->sin_family = ipType;
+    Address->sin_port = htons(port);
+    if (inet_pton(ipType, (const char *)ip, &Address->sin_addr) <= 0)
     {
         printf("%s\n", ip);
         perror("inet_pton() failed");
         return -1;
     }
     // connect to receiver
-    if (!isUDP && connect(sock, (struct sockaddr *)&Address, sizeof(Address)) == -1)
+    if (!isUDP && connect(sock, (struct sockaddr *)Address, sizeof(struct sockaddr_in)) == -1)
     {
         perror("connect() failed");
         close(sock);
@@ -41,7 +40,8 @@ int startChatClient(char *ip, int port)
 {
     printf("starting the client\n");
     // creating a new socket
-    int clientSocket = createClientSocket(ip, port, AF_INET, 0);
+    struct sockaddr_in Address;
+    int clientSocket = createClientSocket(ip, port, AF_INET, 0, &Address);
     if (clientSocket == -1)
         return -1;
 
@@ -90,7 +90,8 @@ int startInfoClient(char *ip, int port, char *type, char *param)
 {
     printf("starting the client\n");
     // creating the info socket
-    int clientSocket = createClientSocket(ip, port, AF_INET, 0);
+    struct sockaddr_in chatAddress;
+    int clientSocket = createClientSocket(ip, port, AF_INET, 0, &chatAddress);
     if (clientSocket == -1)
         return -1;
 
@@ -114,32 +115,34 @@ int startInfoClient(char *ip, int port, char *type, char *param)
 
     // hashing the file according to md5 algorithm
     unsigned char hash[MD5_DIGEST_LENGTH];
-    hash_file(fd, hash);
+    // hash_file(fd, hash);
     send(clientSocket, hash, sizeof(MD5_DIGEST_LENGTH), 0);
 
-    sleep(2);
+    sleep(0.5);
 
     // creating the data socket
     int newPort = 12000;
-    if(port == 12000)
+    if (port == 12000)
         newPort = 13000;
-    int senderSocket = createClientSocket(ip, newPort, ipType, isUDP);
+    struct sockaddr_in dataAddress;
+    int senderSocket = createClientSocket(ip, newPort, ipType, isUDP, &dataAddress);
     if (senderSocket == -1)
     {
         close(clientSocket);
         return -1;
     }
 
-    char* message = "hi, helpp\n";
-    if(0>=send(senderSocket, message, strlen(message), 0))
+    char *message = "hi, helpp\n";
+    if (0 >= sendto(senderSocket, message, strlen(message), MSG_CONFIRM, &dataAddress, sizeof(dataAddress)))
     {
-    printf("didnt send the message\n");
+        printf("didnt send the message\n");
+        return -1;
     }
     printf("send the message\n");
     // send the file
     // if (send_file(fd) == -1)
     // {
-        
+
     // }
 
     return 0;

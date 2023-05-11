@@ -56,6 +56,7 @@ int got_client_input(int sock)
 
 int got_data_input(int socket, char buffer [BUFFER_SIZE], struct sockaddr * clientAddress, socklen_t * lenAddress)
 {
+    printf("got_data_input function activated\n");
     int n = recvfrom(socket, buffer, BUFFER_SIZE,
                  MSG_WAITALL, clientAddress, lenAddress);
     if (n <= 0)
@@ -69,15 +70,15 @@ int got_chat_input(int)
     return 0;
 }
 
-int hash_file(FILE *fd, unsigned char *hash)
-{
-    MD5_CTX mdContext;
-    int bytes;
-    unsigned char data[1024];
+// int hash_file(FILE *fd, unsigned char *hash)
+// {
+//     MD5_CTX mdContext;
+//     int bytes;
+//     unsigned char data[1024];
 
-    MD5_Init(&mdContext);
-    while ((bytes = fread(data, 1, 1024, fd)) != 0)
-        MD5_Update(&mdContext, data, bytes);
-    MD5_Final(hash, &mdContext);
-    return 0;
-}
+//     MD5_Init(&mdContext);
+//     while ((bytes = fread(data, 1, 1024, fd)) != 0)
+//         MD5_Update(&mdContext, data, bytes);
+//     MD5_Final(hash, &mdContext);
+//     return 0;
+// }
