@@ -35,12 +35,15 @@ int startInfoServer(int port, int quiet);
 int checkPerformance(char *type, char *param, int *ipType, int *isUDP);
 int hash_file(FILE *fd, unsigned char *hash);
 
-int startClient2(char *, int);
+int got_user_input(int);
+int got_client_input(int);
+
+int got_chat_input(int);
+int got_data_input(int socket, char buffer [BUFFER_SIZE], struct sockaddr * clientAddress, socklen_t * lenAddress);
+
 int startServer2(int, int);
 int startClientPerformance(char *, int, char *, char *);
 int startServerPerformance(int, char *, char *, int);
-int got_user_input(int);
-int got_client_input(int);
 // int receiveFile(int sock, int isUDP, int port, int quiet, char *typeToPrint);
 int receiveFile2(int isUDP, int ipType, int port, int quiet, char *typeToPrint);
 // int sendFile(int sock, int port, char *ip);

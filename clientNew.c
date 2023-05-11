@@ -25,7 +25,7 @@ int createClientSocket(char *ip, int port, int ipType, int isUDP)
         return -1;
     }
     // connect to receiver
-    if (connect(sock, (struct sockaddr *)&Address, sizeof(Address)) == -1)
+    if (!isUDP && connect(sock, (struct sockaddr *)&Address, sizeof(Address)) == -1)
     {
         perror("connect() failed");
         close(sock);
@@ -61,7 +61,7 @@ int startChatClient(char *ip, int port)
         poll(pfds, nfds, -1);
         if (pfds[0].revents & POLLIN)
         {
-            int result = got_user_input(&clientSocket);
+            int result = got_user_input(clientSocket);
             if (result == -1)
             {
                 printf("got_user_input() failed\n");
@@ -72,7 +72,7 @@ int startChatClient(char *ip, int port)
         }
         if (pfds[1].revents & POLLIN)
         {
-            int result = got_client_input(&clientSocket);
+            int result = got_client_input(clientSocket);
             if (result == -1)
             {
                 printf("got_client_input() failed\n");
@@ -104,7 +104,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     // generate 100MB file
     srand(time(NULL)); // Initialization, should only be called once.
     FILE *fd = fopen("message.txt", "w+");
-    char message[100 * BUFFER_SIZE];
+    // char message[100 * BUFFER_SIZE];
     for (size_t i = 0; i < FILE_SIZE - 1; i++)
     {
         char randomChar = (rand() % 255) + 1;
@@ -120,18 +120,27 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     sleep(2);
 
     // creating the data socket
-    int senderSocket = createClientSocket(ip, port, ipType, isUDP);
+    int newPort = 12000;
+    if(port == 12000)
+        newPort = 13000;
+    int senderSocket = createClientSocket(ip, newPort, ipType, isUDP);
     if (senderSocket == -1)
     {
         close(clientSocket);
         return -1;
     }
 
-    // send the file
-    if (send_file(fd) == -1)
+    char* message = "hi, helpp\n";
+    if(0>=send(senderSocket, message, strlen(message), 0))
     {
-        
+    printf("didnt send the message\n");
     }
+    printf("send the message\n");
+    // send the file
+    // if (send_file(fd) == -1)
+    // {
+        
+    // }
 
     return 0;
 }

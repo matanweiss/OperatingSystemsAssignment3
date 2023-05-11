@@ -54,6 +54,21 @@ int got_client_input(int sock)
     return 0;
 }
 
+int got_data_input(int socket, char buffer [BUFFER_SIZE], struct sockaddr * clientAddress, socklen_t * lenAddress)
+{
+    int n = recvfrom(socket, buffer, BUFFER_SIZE,
+                 MSG_WAITALL, clientAddress, lenAddress);
+    if (n <= 0)
+        return -1;
+    buffer[n] = '\0';
+    return 0;
+}
+
+int got_chat_input(int)
+{
+    return 0;
+}
+
 int hash_file(FILE *fd, unsigned char *hash)
 {
     MD5_CTX mdContext;
@@ -64,4 +79,5 @@ int hash_file(FILE *fd, unsigned char *hash)
     while ((bytes = fread(data, 1, 1024, fd)) != 0)
         MD5_Update(&mdContext, data, bytes);
     MD5_Final(hash, &mdContext);
+    return 0;
 }

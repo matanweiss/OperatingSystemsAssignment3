@@ -93,7 +93,7 @@ int startChatServer(int port)
             poll(pfds, nfds, -1);
             if (pfds[0].revents & POLLIN)
             {
-                int result = got_user_input(&clientSocket);
+                int result = got_user_input(clientSocket);
                 if (result == -1)
                 {
                     printf("got_user_input() failed\n");
@@ -104,7 +104,7 @@ int startChatServer(int port)
             }
             if (pfds[1].revents & POLLIN)
             {
-                int result = got_client_input(&clientSocket);
+                int result = got_client_input(clientSocket);
                 if (result == -1)
                 {
                     printf("got_client_input() failed\n");
@@ -178,7 +178,7 @@ int startInfoServer(int port, int quiet)
             return -1;
         }
         int clientDataSocket;
-        struct sockaddr_in clientDataAddress;
+        struct sockaddr clientDataAddress;
         socklen_t clientDataAddressLen = sizeof(clientDataAddress);
 
         memset(&clientDataAddress, 0, sizeof(clientDataAddress));
@@ -189,6 +189,7 @@ int startInfoServer(int port, int quiet)
         }
         else
         {
+            printf("hi\n");
             clientDataSocket = accept(dataSocket, (struct sockaddr *)&clientDataAddress, &clientDataAddressLen);
             if (clientDataSocket == -1)
             {
@@ -206,6 +207,11 @@ int startInfoServer(int port, int quiet)
         pfds[1].fd = clientDataSocket;
         pfds[1].events = POLLIN;
 
+        // char message[BUFFER_SIZE];
+        char buffer[BUFFER_SIZE];
+        // struct timeval start, end;
+
+        printf("Receiving the: \n");
         while (1)
         {
             printf("Receiving the file: \n");
@@ -213,25 +219,27 @@ int startInfoServer(int port, int quiet)
             poll(pfds, nfds, -1);
             if (pfds[0].revents & POLLIN)
             {
-                int result = got_chat_input(&clientChatSocket);
+                int result = got_chat_input(clientChatSocket);
                 if (result == -1)
                 {
                     printf("got_user_input() failed\n");
                     break;
                 }
-                else if (result == 1)
-                    break;
+                // else if (result == 1)
+                //     break;
             }
             if (pfds[1].revents & POLLIN)
             {
-                int result = got_data_input(&clientDataSocket);
+                printf("test1\n");
+                int result = got_data_input(clientDataSocket, buffer, &clientDataAddress, &clientDataAddressLen);
                 if (result == -1)
                 {
                     printf("got_client_input() failed\n");
                     break;
                 }
-                else if (result == 1)
-                    break;
+                printf("%s\n", buffer);
+                // else if (result == 1)
+                //     break;
             }
         }
     }
