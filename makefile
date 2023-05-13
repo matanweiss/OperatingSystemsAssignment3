@@ -7,4 +7,4 @@ all: stnc
 stnc: stnc.c $(COMMUNICATIONS) communications.h 
 	$(CC) $(FLAGS) stnc stnc.c $(COMMUNICATIONS) -lrt
 clean:
-	rm stnc
+	rm stnc *.txt

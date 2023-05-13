@@ -2,38 +2,39 @@
 
 int createServerMmap(char *filename)
 {
+    sleep(1);
     int shm_fd = shm_open(filename, O_RDONLY, 0666);
-    if (shm_fd < 0)
+    if (shm_fd < 0) 
     {
         perror("Shared memory open error");
-        return 1;
+        return -1;
     }
 
     struct stat st;
-    if (fstat(shm_fd, &st) < 0)
+    if (fstat(shm_fd, &st) < 0) 
     {
         perror("Shared memory stat error");
         close(shm_fd);
-        return 1;
+        return -1;
     }
 
     size_t size = st.st_size;
 
     void *addr = mmap(NULL, size, PROT_READ, MAP_SHARED, shm_fd, 0);
-    if (addr == MAP_FAILED)
+    if (addr == MAP_FAILED) 
     {
         perror("Memory mapping error");
         close(shm_fd);
-        return 1;
+        return -1;
     }
 
     int fd = open("received.txt", O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (fd < 0)
+    if (fd < 0) 
     {
         perror("File open error");
         munmap(addr, size);
         close(shm_fd);
-        return 1;
+        return -1;
     }
 
     write(fd, addr, size);

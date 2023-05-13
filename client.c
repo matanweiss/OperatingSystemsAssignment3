@@ -1,23 +1,13 @@
 #include "communications.h"
 
-// int createClientMMAP(char *param, FILE *fd)
-// {
-//     // Create a shared memory region
-//     void *shared_mem = mmap(NULL, FILE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-//     if (shared_mem == MAP_FAILED)
-//     {
-//         perror("mmap");
-//         exit(EXIT_FAILURE);
-//     }
-// }
-
 int createClientMmap(char *param)
 {
+    printf("%s\n", param);
     int fd = open(SEND_FILE_NAME, O_RDONLY);
     if (fd < 0)
     {
         perror("File open error");
-        return 1;
+        return -1;
     }
 
     struct stat st;
@@ -25,7 +15,7 @@ int createClientMmap(char *param)
     {
         perror("File stat error");
         close(fd);
-        return 1;
+        return -1;
     }
 
     size_t size = st.st_size;
@@ -35,7 +25,7 @@ int createClientMmap(char *param)
     {
         perror("Shared memory creation error");
         close(fd);
-        return 1;
+        return -1;
     }
 
     ftruncate(shm_fd, size); // resize the shared mamory to the file size.
@@ -46,10 +36,11 @@ int createClientMmap(char *param)
         perror("Memory mapping error");
         close(fd);
         shm_unlink(param);
-        return 1;
+        return -1;
     }
-
-    read(fd, addr, size);
+    printf("size: %ld\n",size);
+    printf("%ld\n",read(fd, addr, size));
+    perror("read");
 
     // printf("Server: File '%s' mapped to shared memory. Press ENTER to unmap and exit.\n", FILE_TO_SEND);
     // getchar();
@@ -57,7 +48,6 @@ int createClientMmap(char *param)
     // munmap(addr, size);
     close(fd);
     // shm_unlink(SHARED_MEMORY_NAME);
-
     return 0;
 }
 
@@ -297,14 +287,11 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     //     senderSocket = createClientMMAP(param, fd);
     else if (ipType == PIPE)
     {
-        char paramWithBackslash[strlen(param)+2];
-        paramWithBackslash[0]='\\';
-        strcpy(paramWithBackslash+1,param);
-        paramWithBackslash[strlen(param)+1]='\0';
-        send(clientSocket, paramWithBackslash, strlen(paramWithBackslash) + 1, 0);
-        if (createClientPipe(fd, paramWithBackslash) == -1)
+        send(clientSocket, param, strlen(param) + 1, 0);
+
+        if (createClientPipe(fd, param) == -1)
         {
-            close(clientSocket);xx
+            close(clientSocket);
             return -1;
         }
         close(clientSocket);
@@ -312,9 +299,13 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     }
     else if (ipType == MMAP)
     {
-        send(clientSocket, param, strlen(param) + 1, 0);
+        char paramWithBackslash[strlen(param) + 2];
+        paramWithBackslash[0] = '/';
+        strcpy(paramWithBackslash + 1, param);
+        paramWithBackslash[strlen(param) + 1] = '\0';
+        send(clientSocket, paramWithBackslash, strlen(paramWithBackslash) + 1, 0);
         fclose(fd);
-        if (createClientMmap(param) == -1)
+        if (createClientMmap(paramWithBackslash) == -1)
         {
             close(clientSocket);
             return -1;
