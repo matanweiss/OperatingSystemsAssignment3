@@ -4,14 +4,14 @@ int createServerMmap(char *filename)
 {
     sleep(1);
     int fdShared = shm_open(filename, O_RDONLY, 0666);
-    if (fdShared < 0) 
+    if (fdShared < 0)
     {
         perror("shm_open");
         return -1;
     }
 
     struct stat statMmap;
-    if (fstat(fdShared, &statMmap) < 0) 
+    if (fstat(fdShared, &statMmap) < 0)
     {
         perror("fstat");
         close(fdShared);
@@ -21,7 +21,7 @@ int createServerMmap(char *filename)
     size_t size = statMmap.st_size;
 
     void *addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fdShared, 0);
-    if (addr == MAP_FAILED) 
+    if (addr == MAP_FAILED)
     {
         perror("mmap");
         close(fdShared);
@@ -29,7 +29,7 @@ int createServerMmap(char *filename)
     }
 
     int fd = open("received.txt", O_WRONLY | O_CREAT | O_TRUNC, 0666);
-    if (fd < 0) 
+    if (fd < 0)
     {
         perror("open");
         munmap(addr, size);
@@ -279,7 +279,7 @@ int startInfoServer(int port, int quiet)
                 return -1;
             }
             gettimeofday(&end, NULL);
-            double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+            double timeDelta = (end.tv_sec - 1 - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
             printf("%s, %f\n", typeToPrint, timeDelta);
             close(clientChatSocket);
             continue;
@@ -303,7 +303,7 @@ int startInfoServer(int port, int quiet)
                 return -1;
             }
             gettimeofday(&end, NULL);
-            double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+            double timeDelta = (end.tv_sec - 1 - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
             printf("%s, %f\n", typeToPrint, timeDelta);
             close(clientChatSocket);
             continue;
@@ -358,7 +358,7 @@ int startInfoServer(int port, int quiet)
         pfds[1].fd = clientDataSocket;
         pfds[1].events = POLLIN;
 
-        int bytesReveived = 0;
+        int bytesReceived = 0;
         while (1)
         {
 
@@ -397,7 +397,14 @@ int startInfoServer(int port, int quiet)
                 }
 
                 fwrite(buffer, n, 1, fd);
-                bytesReveived += n;
+                bytesReceived += n;
+                if (bytesReceived == FILE_SIZE)
+                {
+                    gettimeofday(&end, NULL);
+                    double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+                    printf("%s, %f\n", typeToPrint, timeDelta);
+                    break;
+                }
             }
         }
         close(dataSocket);

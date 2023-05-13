@@ -37,10 +37,11 @@ int createClientMmap(char *param)
         shm_unlink(param);
         return -1;
     }
-    if(read(fd, addr, size) < 0){
+    if (read(fd, addr, size) < 0)
+    {
 
-    perror("read");
-    close(fd);
+        perror("read");
+        close(fd);
     }
 
     close(fd);
@@ -165,7 +166,6 @@ int createClientSocketIPv4(char *ip, int port, int ipType, int isUDP, struct soc
         return -1;
     }
 
-
     return sock;
 }
 
@@ -235,7 +235,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     // send the info to the server before we send the 100MB data
     send(clientSocket, &ipType, sizeof(int), 0);
     send(clientSocket, &isUDP, sizeof(int), 0);
-    send(clientSocket, typeToPrint, strlen(typeToPrint), 0);
+    send(clientSocket, typeToPrint, strlen(typeToPrint) + 1, 0);
 
     // generate 100MB file
     srand(time(NULL)); // Initialization, should only be called once.
@@ -333,6 +333,8 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     printf("the file has been sent\n");
 
     sleep(1);
+    if (isUDP)
+        sleep(3);
     send(clientSocket, "exit", 5, 0);
     close(clientSocket);
     close(senderSocket);
@@ -344,6 +346,7 @@ int checkPerformance(char *type, char *param, int *ipType, int *isUDP, char *typ
     // int sock;
     *(isUDP) = 0;
     *(ipType) = 0;
+    memset(typeToPrint, 0, 50);
     if (!strcmp(type, "ipv4") && !strcmp(param, "tcp"))
     {
         *(ipType) = AF_INET;
