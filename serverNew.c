@@ -4,6 +4,7 @@ int createServerSocket(int port, int ipType, int isUDP)
 {
     struct sockaddr_in serverAddressIPv4;
     struct sockaddr_in6 serverAddressIPv6;
+    struct sockaddr_un serverAddressUDS;
     int serverSocket;
     if (isUDP)
         serverSocket = socket(ipType, SOCK_DGRAM, IPPROTO_UDP);
@@ -41,6 +42,14 @@ int createServerSocket(int port, int ipType, int isUDP)
         serverAddressIPv6.sin6_family = ipType;
         serverAddressIPv6.sin6_port = htons(port);
         bindResult = bind(serverSocket, (struct sockaddr *)&serverAddressIPv6, sizeof(serverAddressIPv6));
+    }
+    else if (ipType == AF_UNIX)
+    {
+        memset(&serverAddressUDS, 0, sizeof(serverAddressUDS));
+        serverAddressUDS.sun_family = ipType;
+        strncpy(serverAddressUDS.sun_path, "uds", sizeof(serverAddressUDS.sun_path) - 1);
+        unlink("uds");
+        bindResult = bind(serverSocket, (struct sockaddr *)&serverAddressUDS, sizeof(serverAddressUDS));
     }
 
     // On success, zero is returned.  On error, -1 is returned, and errno is set appropriately.
@@ -191,18 +200,29 @@ int startInfoServer(int port, int quiet)
             return -1;
         }
         int clientDataSocket;
-        struct sockaddr_in clientDataAddress;
-        socklen_t clientDataAddressLen = sizeof(clientDataAddress);
+        struct sockaddr_in clientDataAddressIPv4;
+        struct sockaddr_in6 clientDataAddressIPv6;
+        socklen_t clientDataAddressLenIPv4 = sizeof(clientDataAddressIPv4);
+        socklen_t clientDataAddressLenIPv6 = sizeof(clientDataAddressIPv6);
 
-        memset(&clientDataAddress, 0, sizeof(clientDataAddress));
-        clientDataAddressLen = sizeof(clientDataAddress);
+        memset(&clientDataAddressIPv4, 0, sizeof(clientDataAddressIPv4));
+        memset(&clientDataAddressIPv6, 0, sizeof(clientDataAddressIPv6));
+        clientDataAddressLenIPv4 = sizeof(clientDataAddressIPv4);
+        clientDataAddressLenIPv4 = sizeof(clientDataAddressIPv6);
         if (isUDP)
         {
             clientDataSocket = dataSocket;
         }
         else
         {
-            clientDataSocket = accept(dataSocket, (struct sockaddr *)&clientDataAddress, &clientDataAddressLen);
+            if (ipType == AF_INET)
+            {
+                clientDataSocket = accept(dataSocket, (struct sockaddr *)&clientDataAddressIPv4, &clientDataAddressLenIPv4);
+            }
+            else if (ipType == AF_INET6)
+            {
+                clientDataSocket = accept(dataSocket, (struct sockaddr *)&clientDataAddressIPv6, &clientDataAddressLenIPv6);
+            }
             if (clientDataSocket == -1)
             {
                 perror("accept() failed");
@@ -267,13 +287,19 @@ int startInfoServer(int port, int quiet)
                 // printf("%s\n", buffer);
                 // else if (result == 1)
                 //     break;
-
-                int n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&clientDataAddress, &clientDataAddressLen);
+                int n = 0;
+                if (ipType == AF_INET)
+                    n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&clientDataAddressIPv4, &clientDataAddressLenIPv4);
+                else if (ipType == AF_INET6)
+                    n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&clientDataAddressIPv6, &clientDataAddressLenIPv6);
                 printf("received %d bytes\n", n);
                 fwrite(buffer, n, 1, fd);
                 bytesReveived += n;
             }
         }
+        close(dataSocket);
+        fclose(fd);
     }
+    close(infoSocket);
     return 0;
 }

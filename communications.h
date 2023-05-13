@@ -19,6 +19,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <openssl/md5.h>
+#include <sys/un.h>
 
 #define FILE_SIZE 1024 * 1024 * 100
 #define BUFFER_SIZE 1024

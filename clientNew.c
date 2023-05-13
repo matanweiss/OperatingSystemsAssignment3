@@ -2,7 +2,6 @@
 
 int createClientSocketIPv6(char *ip, int port, int ipType, int isUDP, struct sockaddr_in6 *Address)
 {
-    printf("hi\n");
     int sock;
     if (isUDP)
         sock = socket(ipType, SOCK_DGRAM, IPPROTO_UDP);
