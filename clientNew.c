@@ -132,6 +132,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
         return -1;
     }
 
+    send(clientSocket, "start", 6, 0);
     char *message = "hi, helpp\n";
     if (0 >= sendto(senderSocket, message, strlen(message), MSG_CONFIRM, &dataAddress, sizeof(dataAddress)))
     {
@@ -144,6 +145,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     // {
 
     // }
+    sleep(1);
     send(clientSocket, "exit", 5, 0);
     close(clientSocket);
     close(senderSocket);

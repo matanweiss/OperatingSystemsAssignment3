@@ -208,7 +208,7 @@ int startInfoServer(int port, int quiet)
 
         // char message[BUFFER_SIZE];
         char buffer[BUFFER_SIZE];
-        // struct timeval start, end;
+        struct timeval start, end;
 
         printf("Receiving the: \n");
         while (1)
@@ -232,8 +232,15 @@ int startInfoServer(int port, int quiet)
                     perror("recv() failed");
                     return -1;
                 }
+                if (!strcmp(buffer, "start"))
+                    gettimeofday(&start, NULL);
                 if (!strcmp(buffer, "exit"))
+                {
+                    gettimeofday(&end, NULL);
+                    double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+                    printf("%s, %f\n", buffer, timeDelta);
                     break;
+                }
                 printf("%s\n", buffer);
             }
             if (pfds[1].revents & POLLIN)

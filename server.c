@@ -187,7 +187,7 @@ int startServer2(int port, int quiet)
         while (buffer != '_')
         {
             type[i] = buffer[i];
-            buffer++;
+            // buffer++;
             i++;
         }
         type[i] = 0;
@@ -196,7 +196,7 @@ int startServer2(int port, int quiet)
         while (buffer != 0)
         {
             param[i] = buffer[i];
-            buffer++;
+            // buffer++;
             i++;
         }
         param[i] = 0;
