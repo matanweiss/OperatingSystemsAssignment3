@@ -149,12 +149,18 @@ int startInfoServer(int port, int quiet)
 
         // getting the type and param comunication
         int ipType, isUDP;
+        char typeToPrint[50];
         if (recv(clientChatSocket, &ipType, sizeof(int), 0) < 0)
         {
             perror("recv() failed");
             return -1;
         }
         if (recv(clientChatSocket, &isUDP, sizeof(int), 0) < 0)
+        {
+            perror("recv() failed");
+            return -1;
+        }
+        if (recv(clientChatSocket, typeToPrint, 50, 0) < 0)
         {
             perror("recv() failed");
             return -1;
@@ -238,7 +244,7 @@ int startInfoServer(int port, int quiet)
                 {
                     gettimeofday(&end, NULL);
                     double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-                    printf("%s, %f\n", buffer, timeDelta);
+                    printf("%s, %f\n", typeToPrint, timeDelta);
                     break;
                 }
                 printf("%s\n", buffer);

@@ -1,6 +1,6 @@
 #include "communications.h"
 
-int createClientSocket(char *ip, int port, int ipType, int isUDP,struct sockaddr_in * Address)
+int createClientSocket(char *ip, int port, int ipType, int isUDP, struct sockaddr_in *Address)
 {
     int sock;
     if (isUDP)
@@ -96,11 +96,13 @@ int startInfoClient(char *ip, int port, char *type, char *param)
         return -1;
 
     int ipType, isUDP;
-    if (checkPerformance(type, param, &ipType, &isUDP) == -1)
+    char typeToPrint[50];
+    if (checkPerformance(type, param, &ipType, &isUDP,typeToPrint) == -1)
         return -1;
     // send the info to the server before we send the 100MB data
     send(clientSocket, &ipType, sizeof(int), 0);
     send(clientSocket, &isUDP, sizeof(int), 0);
+    send(clientSocket, typeToPrint, strlen(typeToPrint), 0);
 
     // generate 100MB file
     srand(time(NULL)); // Initialization, should only be called once.
@@ -152,7 +154,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     return 0;
 }
 
-int checkPerformance(char *type, char *param, int *ipType, int *isUDP)
+int checkPerformance(char *type, char *param, int *ipType, int *isUDP, char *typeToPrint)
 {
     // int sock;
     *(isUDP) = 0;
@@ -160,36 +162,43 @@ int checkPerformance(char *type, char *param, int *ipType, int *isUDP)
     if (!strcmp(type, "ipv4") && !strcmp(param, "tcp"))
     {
         *(ipType) = AF_INET;
+        strcpy(typeToPrint,"ipv4_tcp");
     }
     else if (!strcmp(type, "ipv4") && !strcmp(param, "udp"))
     {
         *(ipType) = AF_INET;
         *(isUDP) = 1;
+        strcpy(typeToPrint,"ipv4_udp");
     }
     else if (!strcmp(type, "ipv6") && !strcmp(param, "tcp"))
     {
         *(ipType) = AF_INET6;
+        strcpy(typeToPrint,"ipv6_tcp");
     }
     else if (!strcmp(type, "ipv6") && !strcmp(param, "udp"))
     {
         *(ipType) = AF_INET6;
         *(isUDP) = 1;
+        strcpy(typeToPrint,"ipv6_udp");
     }
     else if (!strcmp(type, "uds") && !strcmp(param, "dgram"))
     {
         *(ipType) = AF_UNIX;
         *(isUDP) = 1;
+        strcpy(typeToPrint,"uds_dgram");
     }
     else if (!strcmp(type, "uds") && !strcmp(param, "stream"))
     {
         *(ipType) = AF_UNIX;
-        // sock = socket(AF_UNIX, SOCK_STREAM, 0);
+        strcpy(typeToPrint,"uds_stream");
     }
     else if (!strcmp(type, "mmap"))
     {
+        strcpy(typeToPrint,"mmap");
     }
     else if (!strcmp(type, "pipe"))
     {
+        strcpy(typeToPrint,"pipe");
     }
     else
     {

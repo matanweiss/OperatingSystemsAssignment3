@@ -33,7 +33,7 @@ int startChatServer(int port);
 int startInfoClient(char *ip, int port, char *type, char *param);
 int startInfoServer(int port, int quiet);
 
-int checkPerformance(char *type, char *param, int *ipType, int *isUDP);
+int checkPerformance(char *type, char *param, int *ipType, int *isUDP, char *typeToPrint);
 int hash_file(FILE *fd, unsigned char *hash);
 
 int got_user_input(int);
