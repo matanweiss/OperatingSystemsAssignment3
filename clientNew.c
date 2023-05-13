@@ -1,5 +1,20 @@
 #include "communications.h"
 
+// int createClientMMAP(char *param, FILE *fd)
+// {
+//     // Create a shared memory region
+//     void *shared_mem = mmap(NULL, FILE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+//     if (shared_mem == MAP_FAILED)
+//     {
+//         perror("mmap");
+//         exit(EXIT_FAILURE);
+//     }
+// }
+
+// int createClientPIPE(char *param)
+// {
+// }
+
 int createClientSocketUDS(char *ip, int port, int ipType, int isUDP, struct sockaddr_un *Address)
 {
     int sock;
@@ -195,6 +210,58 @@ int startInfoClient(char *ip, int port, char *type, char *param)
         senderSocket = createClientSocketIPv6(ip, newPort, ipType, isUDP, &dataAddressIPv6);
     else if (ipType == AF_UNIX)
         senderSocket = createClientSocketUDS(ip, newPort, ipType, isUDP, &dataAddressUDS);
+    // else if (ipType == MMAP)
+    //     senderSocket = createClientMMAP(param, fd);
+    else if (ipType == PIPE)
+    {
+        send(clientSocket, "start", 6, 0);
+
+        // Create the named pipe
+        if (mknod(param, S_IFIFO | 0666, 0) == -1)
+        {
+            perror("mknod");
+            exit(EXIT_FAILURE);
+        }
+
+        // Open the named pipe for writing
+        int pipe_fd = open(param, O_WRONLY);
+        if (pipe_fd == -1)
+        {
+            perror("open");
+            exit(EXIT_FAILURE);
+        }
+
+        // Open the file to be transferred
+        int file_fd = open(param, O_RDONLY);
+        if (file_fd == -1)
+        {
+            perror("open");
+            exit(EXIT_FAILURE);
+        }
+
+        // Read the file and write its contents to the named pipe
+        char buffer[BUFSIZ];
+        ssize_t bytes_read, bytes_written;
+
+        while ((bytes_read = read(file_fd, buffer, BUFSIZ)) > 0)
+        {
+            bytes_written = write(pipe_fd, buffer, bytes_read);
+            if (bytes_written == -1)
+            {
+                perror("write");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        send(clientSocket, "exit", 5, 0);
+
+        close(file_fd);
+        fclose(fd);
+        close(pipe_fd);
+        close(clientSocket);
+        return 0;
+    }
+
     if (senderSocket == -1)
     {
         close(clientSocket);
@@ -289,10 +356,12 @@ int checkPerformance(char *type, char *param, int *ipType, int *isUDP, char *typ
     }
     else if (!strcmp(type, "mmap"))
     {
+        *(ipType) = MMAP;
         strcpy(typeToPrint, "mmap");
     }
     else if (!strcmp(type, "pipe"))
     {
+        *(ipType) = PIPE;
         strcpy(typeToPrint, "pipe");
     }
     else
