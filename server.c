@@ -1,5 +1,50 @@
 #include "communications.h"
 
+int createServerMmap(char *filename)
+{
+    int shm_fd = shm_open(filename, O_RDONLY, 0666);
+    if (shm_fd < 0)
+    {
+        perror("Shared memory open error");
+        return 1;
+    }
+
+    struct stat st;
+    if (fstat(shm_fd, &st) < 0)
+    {
+        perror("Shared memory stat error");
+        close(shm_fd);
+        return 1;
+    }
+
+    size_t size = st.st_size;
+
+    void *addr = mmap(NULL, size, PROT_READ, MAP_SHARED, shm_fd, 0);
+    if (addr == MAP_FAILED)
+    {
+        perror("Memory mapping error");
+        close(shm_fd);
+        return 1;
+    }
+
+    int fd = open("received.txt", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (fd < 0)
+    {
+        perror("File open error");
+        munmap(addr, size);
+        close(shm_fd);
+        return 1;
+    }
+
+    write(fd, addr, size);
+
+    munmap(addr, size);
+    close(fd);
+    close(shm_fd);
+
+    return 0;
+}
+
 int createServerPipe(FILE *fd, char *filename)
 {
     int fdFIFO;
@@ -244,7 +289,32 @@ int startInfoServer(int port, int quiet)
             }
             gettimeofday(&end, NULL);
             double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-            printf("%s, %f\n",typeToPrint,timeDelta);
+            printf("%s, %f\n", typeToPrint, timeDelta);
+            close(clientChatSocket);
+            continue;
+        }
+        else if (ipType == MMAP)
+        {
+            char filename[50];
+            if (recv(clientChatSocket, filename, 50, 0) < 0)
+            {
+                perror("recv() failed");
+                close(clientChatSocket);
+                fclose(fd);
+                return -1;
+            }
+            fclose(fd);
+            printf("%s\n", filename);
+
+            gettimeofday(&start, NULL);
+            if (createServerMmap(filename) == -1)
+            {
+                close(clientChatSocket);
+                return -1;
+            }
+            gettimeofday(&end, NULL);
+            double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+            printf("%s, %f\n", typeToPrint, timeDelta);
             close(clientChatSocket);
             continue;
         }

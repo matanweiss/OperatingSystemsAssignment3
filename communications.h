@@ -35,6 +35,8 @@ int createClientSocketIPv4(char *ip, int port, int ipType, int isUDP, struct soc
 int createClientSocketIPv6(char *ip, int port, int ipType, int isUDP, struct sockaddr_in6 *Address);
 int createClientPipe(FILE *fd, char *param);
 int createServerPipe(FILE *fd, char *filename);
+int createClientMmap(char* param);
+int createServerMmap(char* param);
 int startChatClient(char *ip, int port);
 int startChatServer(int port);
 

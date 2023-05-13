@@ -11,9 +11,55 @@
 //     }
 // }
 
-// int createClientPIPE(char *param)
-// {
-// }
+int createClientMmap(char *param)
+{
+    int fd = open(SEND_FILE_NAME, O_RDONLY);
+    if (fd < 0)
+    {
+        perror("File open error");
+        return 1;
+    }
+
+    struct stat st;
+    if (fstat(fd, &st) < 0)
+    {
+        perror("File stat error");
+        close(fd);
+        return 1;
+    }
+
+    size_t size = st.st_size;
+
+    int shm_fd = shm_open(param, O_CREAT | O_RDWR, 0666);
+    if (shm_fd < 0)
+    {
+        perror("Shared memory creation error");
+        close(fd);
+        return 1;
+    }
+
+    ftruncate(shm_fd, size); // resize the shared mamory to the file size.
+
+    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (addr == MAP_FAILED)
+    {
+        perror("Memory mapping error");
+        close(fd);
+        shm_unlink(param);
+        return 1;
+    }
+
+    read(fd, addr, size);
+
+    // printf("Server: File '%s' mapped to shared memory. Press ENTER to unmap and exit.\n", FILE_TO_SEND);
+    // getchar();
+
+    // munmap(addr, size);
+    close(fd);
+    // shm_unlink(SHARED_MEMORY_NAME);
+
+    return 0;
+}
 
 int createClientPipe(FILE *fd, char *param)
 {
@@ -251,8 +297,24 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     //     senderSocket = createClientMMAP(param, fd);
     else if (ipType == PIPE)
     {
-        send(clientSocket, param, strlen(param)+1, 0);
-        if (createClientPipe(fd, param) == -1)
+        char paramWithBackslash[strlen(param)+2];
+        paramWithBackslash[0]='\\';
+        strcpy(paramWithBackslash+1,param);
+        paramWithBackslash[strlen(param)+1]='\0';
+        send(clientSocket, paramWithBackslash, strlen(paramWithBackslash) + 1, 0);
+        if (createClientPipe(fd, paramWithBackslash) == -1)
+        {
+            close(clientSocket);xx
+            return -1;
+        }
+        close(clientSocket);
+        return 0;
+    }
+    else if (ipType == MMAP)
+    {
+        send(clientSocket, param, strlen(param) + 1, 0);
+        fclose(fd);
+        if (createClientMmap(param) == -1)
         {
             close(clientSocket);
             return -1;
