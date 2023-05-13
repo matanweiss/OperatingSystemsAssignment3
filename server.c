@@ -3,37 +3,37 @@
 int createServerMmap(char *filename)
 {
     sleep(1);
-    int shm_fd = shm_open(filename, O_RDONLY, 0666);
-    if (shm_fd < 0) 
+    int fdShared = shm_open(filename, O_RDONLY, 0666);
+    if (fdShared < 0) 
     {
-        perror("Shared memory open error");
+        perror("shm_open");
         return -1;
     }
 
-    struct stat st;
-    if (fstat(shm_fd, &st) < 0) 
+    struct stat statMmap;
+    if (fstat(fdShared, &statMmap) < 0) 
     {
-        perror("Shared memory stat error");
-        close(shm_fd);
+        perror("fstat");
+        close(fdShared);
         return -1;
     }
 
-    size_t size = st.st_size;
+    size_t size = statMmap.st_size;
 
-    void *addr = mmap(NULL, size, PROT_READ, MAP_SHARED, shm_fd, 0);
+    void *addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fdShared, 0);
     if (addr == MAP_FAILED) 
     {
-        perror("Memory mapping error");
-        close(shm_fd);
+        perror("mmap");
+        close(fdShared);
         return -1;
     }
 
     int fd = open("received.txt", O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd < 0) 
     {
-        perror("File open error");
+        perror("open");
         munmap(addr, size);
-        close(shm_fd);
+        close(fdShared);
         return -1;
     }
 
@@ -41,7 +41,7 @@ int createServerMmap(char *filename)
 
     munmap(addr, size);
     close(fd);
-    close(shm_fd);
+    close(fdShared);
 
     return 0;
 }
@@ -50,7 +50,6 @@ int createServerPipe(FILE *fd, char *filename)
 {
     int fdFIFO;
     sleep(1);
-    // Open the FIFO for reading
     if ((fdFIFO = open(filename, O_RDONLY)) == -1)
     {
         perror("open");
@@ -59,21 +58,15 @@ int createServerPipe(FILE *fd, char *filename)
     }
 
     char buffer[BUFFER_SIZE];
-    ssize_t bytesRead;
+    ssize_t bytesSent;
 
-    // Read the contents of the FIFO and print them to stdout
-    while ((bytesRead = read(fdFIFO, buffer, BUFFER_SIZE)) > 0)
+    while ((bytesSent = read(fdFIFO, buffer, BUFFER_SIZE)) > 0)
     {
-        fwrite(buffer, 1, bytesRead, fd);
+        fwrite(buffer, 1, bytesSent, fd);
     }
 
-    // Close the FIFO
     close(fdFIFO);
-
-    // Close the file.
     fclose(fd);
-
-    // Remove the FIFO
     unlink(filename);
 
     return 0;
@@ -143,7 +136,6 @@ int createServerSocket(int port, int ipType, int isUDP)
         printf("listen() failed with error code : %d\n", errno);
         return -1;
     }
-    printf("The server is listening...\n\n");
     return serverSocket;
 }
 
@@ -226,7 +218,6 @@ int startInfoServer(int port, int quiet)
     // infinite loop for the incoming requests
     while (1)
     {
-        printf("Waiting for a client to connect...\n\n");
         // accept and incoming connection:
         struct sockaddr_in clientAddress;
         socklen_t clientAddressLen = sizeof(clientAddress);
@@ -240,7 +231,6 @@ int startInfoServer(int port, int quiet)
             perror("accept() failed");
             return -1;
         }
-        printf("The server is conected\n");
 
         struct timeval start, end;
         FILE *fd = fopen("received.txt", "w");
@@ -305,7 +295,6 @@ int startInfoServer(int port, int quiet)
                 return -1;
             }
             fclose(fd);
-            printf("%s\n", filename);
 
             gettimeofday(&start, NULL);
             if (createServerMmap(filename) == -1)
@@ -359,7 +348,6 @@ int startInfoServer(int port, int quiet)
                 perror("accept() failed");
                 return -1;
             }
-            printf("The server is conected\n");
         }
 
         int nfds = 2;
@@ -371,22 +359,12 @@ int startInfoServer(int port, int quiet)
         pfds[1].events = POLLIN;
 
         int bytesReveived = 0;
-        printf("Receiving the: \n");
         while (1)
         {
-            printf("Receiving the file: \n");
 
             poll(pfds, nfds, -1);
             if (pfds[0].revents & POLLIN)
             {
-                // int result = got_chat_input(clientChatSocket);
-                // if (result == -1)
-                // {
-                //     printf("got_chat_input() failed\n");
-                //     break;
-                // }
-                // else if (result == 1)
-                //     break;
                 char chatBuffer[20];
                 if (recv(clientChatSocket, chatBuffer, 20, 0) < 0)
                 {
@@ -399,29 +377,12 @@ int startInfoServer(int port, int quiet)
                 {
                     gettimeofday(&end, NULL);
                     double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-
-                    // unsigned long receivedHash = hash(fd);
-                    // if (receivedHash == clientHash)
-                    //     printf("hash OK\n");
-                    // else
-                    //     printf("hash not OK\n");
-
                     printf("%s, %f\n", typeToPrint, timeDelta);
                     break;
                 }
-                printf("%s\n", chatBuffer);
             }
             if (pfds[1].revents & POLLIN)
             {
-                // int result = got_data_input(clientDataSocket, buffer, &clientDataAddress, &clientDataAddressLen);
-                // if (result == -1)
-                // {
-                //     printf("got_data_input() failed\n");
-                //     break;
-                // }
-                // printf("%s\n", buffer);
-                // else if (result == 1)
-                //     break;
                 int n = 0;
                 if (ipType == AF_INET)
                     n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&clientDataAddressIPv4, &clientDataAddressLenIPv4);
@@ -435,7 +396,6 @@ int startInfoServer(int port, int quiet)
                         n = recv(clientDataSocket, buffer, BUFFER_SIZE, 0);
                 }
 
-                printf("received %d bytes\n", n);
                 fwrite(buffer, n, 1, fd);
                 bytesReveived += n;
             }

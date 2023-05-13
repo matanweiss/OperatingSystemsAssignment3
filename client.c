@@ -2,7 +2,6 @@
 
 int createClientMmap(char *param)
 {
-    printf("%s\n", param);
     int fd = open(SEND_FILE_NAME, O_RDONLY);
     if (fd < 0)
     {
@@ -10,62 +9,55 @@ int createClientMmap(char *param)
         return -1;
     }
 
-    struct stat st;
-    if (fstat(fd, &st) < 0)
+    struct stat statMmap;
+    if (fstat(fd, &statMmap) < 0)
     {
-        perror("File stat error");
+        perror("fstat");
         close(fd);
         return -1;
     }
 
-    size_t size = st.st_size;
+    size_t size = statMmap.st_size;
 
-    int shm_fd = shm_open(param, O_CREAT | O_RDWR, 0666);
-    if (shm_fd < 0)
+    int fdShared = shm_open(param, O_CREAT | O_RDWR, 0666);
+    if (fdShared < 0)
     {
-        perror("Shared memory creation error");
+        perror("Sshm_open");
         close(fd);
         return -1;
     }
 
-    ftruncate(shm_fd, size); // resize the shared mamory to the file size.
+    ftruncate(fdShared, size); // resize the shared mamory to the file size.
 
-    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fdShared, 0);
     if (addr == MAP_FAILED)
     {
-        perror("Memory mapping error");
+        perror("mmap: ");
         close(fd);
         shm_unlink(param);
         return -1;
     }
-    printf("size: %ld\n",size);
-    printf("%ld\n",read(fd, addr, size));
+    if(read(fd, addr, size) < 0){
+
     perror("read");
-
-    // printf("Server: File '%s' mapped to shared memory. Press ENTER to unmap and exit.\n", FILE_TO_SEND);
-    // getchar();
-
-    // munmap(addr, size);
     close(fd);
-    // shm_unlink(SHARED_MEMORY_NAME);
+    }
+
+    close(fd);
     return 0;
 }
 
 int createClientPipe(FILE *fd, char *param)
 {
     int fdFIFO;
-
-    // Remove old FIFO
     unlink(param);
 
-    // Create the FIFO
     if (mkfifo(param, 0666) == -1)
     {
         fclose(fd);
         return -1;
     }
 
-    // Open the FIFO for writing
     if ((fdFIFO = open(param, O_WRONLY)) == -1)
     {
         fclose(fd);
@@ -74,15 +66,13 @@ int createClientPipe(FILE *fd, char *param)
     }
 
     char buffer[BUFFER_SIZE];
-    size_t bytesRead;
+    size_t bytesSent;
 
-    // Read the file and write its contents to the FIFO
-    while ((bytesRead = fread(buffer, 1, BUFFER_SIZE, fd)) > 0)
+    while ((bytesSent = fread(buffer, 1, BUFFER_SIZE, fd)) > 0)
     {
-        write(fdFIFO, buffer, bytesRead);
+        write(fdFIFO, buffer, bytesSent);
     }
 
-    // Close the file and the FIFO
     close(fdFIFO);
     fclose(fd);
     unlink(param);
@@ -112,7 +102,6 @@ int createClientSocketUDS(char *ip, int port, int ipType, int isUDP, struct sock
         close(sock);
         return -1;
     }
-    printf("connected to receiver\n");
     return sock;
 }
 
@@ -134,7 +123,6 @@ int createClientSocketIPv6(char *ip, int port, int ipType, int isUDP, struct soc
     Address->sin6_port = htons(port);
     if (inet_pton(ipType, (const char *)ip, &Address->sin6_addr) <= 0)
     {
-        printf("%s\n", ip);
         perror("inet_pton() failed");
         return -1;
     }
@@ -144,7 +132,6 @@ int createClientSocketIPv6(char *ip, int port, int ipType, int isUDP, struct soc
         close(sock);
         return -1;
     }
-    printf("connected to receiver\n");
     return sock;
 }
 
@@ -166,7 +153,6 @@ int createClientSocketIPv4(char *ip, int port, int ipType, int isUDP, struct soc
     Address->sin_port = htons(port);
     if (inet_pton(ipType, (const char *)ip, &Address->sin_addr) <= 0)
     {
-        printf("%s\n", ip);
         perror("inet_pton() failed");
         return -1;
     }
@@ -179,7 +165,6 @@ int createClientSocketIPv4(char *ip, int port, int ipType, int isUDP, struct soc
         return -1;
     }
 
-    printf("connected to receiver\n");
 
     return sock;
 }
@@ -323,8 +308,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     send(clientSocket, "start", 6, 0);
     for (size_t i = 0; i < FILE_SIZE; i += (BUFFER_SIZE))
     {
-        int res = fread(buffer, 1, BUFFER_SIZE, fd);
-        // message[BUFFER_SIZE - 1] = 0;
+        fread(buffer, 1, BUFFER_SIZE, fd);
         int bytesSent = 0;
         if (ipType == AF_INET)
             bytesSent = sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, (struct sockaddr *)&dataAddressIPv4, sizeof(dataAddressIPv4));
@@ -343,22 +327,11 @@ int startInfoClient(char *ip, int port, char *type, char *param)
             return -1;
         }
         bzero(buffer, BUFFER_SIZE);
-        printf("res: %d, i: %ld\n", res, i);
     }
     fclose(fd);
 
     printf("the file has been sent\n");
-    // char *message = "hi, helpp\n";
-    // if (0 >= sendto(senderSocket, message, strlen(message), MSG_CONFIRM, &dataAddress, sizeof(dataAddress)))
-    // {
-    //     printf("didnt send the message\n");
-    //     return -1;
-    // }
-    // send the file
-    // if (send_file(fd) == -1)
-    // {
 
-    // }
     sleep(1);
     send(clientSocket, "exit", 5, 0);
     close(clientSocket);
