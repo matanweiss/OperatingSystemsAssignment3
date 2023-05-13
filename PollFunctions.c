@@ -54,31 +54,27 @@ int got_client_input(int sock)
     return 0;
 }
 
-int got_data_input(int socket, char buffer [BUFFER_SIZE], struct sockaddr * clientAddress, socklen_t * lenAddress)
+int got_data_input(int socket, char buffer[BUFFER_SIZE], struct sockaddr *clientAddress, socklen_t *lenAddress)
 {
     printf("got_data_input function activated\n");
     int n = recvfrom(socket, buffer, BUFFER_SIZE,
-                 MSG_WAITALL, clientAddress, lenAddress);
+                     MSG_WAITALL, clientAddress, lenAddress);
     if (n <= 0)
         return -1;
     buffer[n] = '\0';
     return 0;
 }
 
-// int got_chat_input(int)
-// {
-//     return 0;
-// }
+unsigned long hash(FILE *fd)
+{
+    unsigned long hash = 5381;
+    int c;
+    for (size_t i = 0; i < FILE_SIZE - 1; i++)
+    {
+        c = getc(fd);
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    }
+    fseek(fd, 0, SEEK_SET);
 
-// int hash_file(FILE *fd, unsigned char *hash)
-// {
-//     MD5_CTX mdContext;
-//     int bytes;
-//     unsigned char data[1024];
-
-//     MD5_Init(&mdContext);
-//     while ((bytes = fread(data, 1, 1024, fd)) != 0)
-//         MD5_Update(&mdContext, data, bytes);
-//     MD5_Final(hash, &mdContext);
-//     return 0;
-// }
+    return hash;
+}

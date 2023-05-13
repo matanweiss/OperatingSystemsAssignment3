@@ -1,146 +1,90 @@
 #include "communications.h"
 
-int startServer(int port)
+int createServerPipe(FILE *fd, char *filename)
 {
-    // create a TCP Connection
-    struct sockaddr_in serverAddress;
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    // If the socket is not established the method sock() return the value -1 (INVALID_SOCKET)
-    if (sockfd == -1)
+    int fdFIFO;
+    sleep(1);
+    // Open the FIFO for reading
+    if ((fdFIFO = open(filename, O_RDONLY)) == -1)
     {
-        perror("socket");
+        perror("open");
+        fclose(fd);
         return -1;
     }
 
-    // the "memset" function copies the character "\0"
-    memset(&serverAddress, 0, sizeof(serverAddress));
+    char buffer[BUFFER_SIZE];
+    ssize_t bytesRead;
 
-    // AF_INET is an Address Family that is Internet Protocol IPv4 addresses
-    serverAddress.sin_family = AF_INET;
-    // any IP at this port (any address to accept incoming messages)
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    // the "htons" convert the port to network endian (big endian)
-    serverAddress.sin_port = htons(port);
-
-    // Often the activation of the method bind() falls with the message "Address already in use".
-    int yes = 1;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1)
+    // Read the contents of the FIFO and print them to stdout
+    while ((bytesRead = read(fdFIFO, buffer, BUFFER_SIZE)) > 0)
     {
-        perror("setsockopt");
-        return -1;
+        fwrite(buffer, 1, bytesRead, fd);
     }
 
-    // Link an address and port with a socket is carried out by the method bind().
-    int bindResult = bind(sockfd, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
-    // On success, zero is returned.  On error, -1 is returned, and errno is set appropriately.
-    if (bindResult == -1)
-    {
-        printf("Bind() failed with error code : %d\n", errno);
-        return -1;
-    }
+    // Close the FIFO
+    close(fdFIFO);
 
-    int listenResult = listen(sockfd, 1);
-    if (listenResult == -1)
-    {
-        printf("listen() failed with error code : %d\n", errno);
-        return -1;
-    }
-    printf("The server is listening...\n\n");
+    // Close the file.
+    fclose(fd);
 
-    // infinite loop for the incoming requests
-    while (1)
-    {
-        printf("Waiting for a client to connect...\n\n");
-        // accept and incoming connection:
-        struct sockaddr_in clientAddress;
-        socklen_t clientAddressLen = sizeof(clientAddress);
+    // Remove the FIFO
+    unlink(filename);
 
-        memset(&clientAddress, 0, sizeof(clientAddress));
-        clientAddressLen = sizeof(clientAddress);
-
-        int clientSocket = accept(sockfd, (struct sockaddr *)&clientAddress, &clientAddressLen);
-        if (clientSocket == -1)
-        {
-            perror("accept() failed");
-            return -1;
-        }
-        printf("The server is conected\n");
-
-        int nfds = 2;
-        struct pollfd pfds[2];
-        // save the stdin file in the poll file descriptor
-        pfds[0].fd = STDIN_FILENO;
-        pfds[0].events = POLLIN;
-        pfds[1].fd = clientSocket;
-        pfds[1].events = POLLIN;
-
-        while (1)
-        {
-            printf("Enter a message: \n");
-
-            poll(pfds, nfds, -1);
-            if (pfds[0].revents & POLLIN)
-            {
-                int result = got_user_input(&clientSocket);
-                if (result == -1)
-                {
-                    printf("got_user_input() failed\n");
-                    break;
-                }
-                else if (result == 1)
-                    break;
-            }
-            if (pfds[1].revents & POLLIN)
-            {
-                int result = got_client_input(&clientSocket);
-                if (result == -1)
-                {
-                    printf("got_client_input() failed\n");
-                    break;
-                }
-                else if (result == 1)
-                    break;
-            }
-        }
-
-        // close the connection:
-        close(clientSocket);
-    }
     return 0;
 }
 
-int startServer2(int port, int quiet)
+int createServerSocket(int port, int ipType, int isUDP)
 {
-    // create a TCP Connection
-    struct sockaddr_in serverAddress;
-    int chatSocket = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in serverAddressIPv4;
+    struct sockaddr_in6 serverAddressIPv6;
+    struct sockaddr_un serverAddressUDS;
+    int serverSocket;
+    if (isUDP)
+        serverSocket = socket(ipType, SOCK_DGRAM, 0);
+    else
+        serverSocket = socket(ipType, SOCK_STREAM, 0);
+
     // If the socket is not established the method sock() return the value -1 (INVALID_SOCKET)
-    if (chatSocket == -1)
+    if (serverSocket == -1)
     {
         perror("socket");
         return -1;
     }
 
-    // the "memset" function copies the character "\0"
-    memset(&serverAddress, 0, sizeof(serverAddress));
-
-    // AF_INET is an Address Family that is Internet Protocol IPv4 addresses
-    serverAddress.sin_family = AF_INET;
-    // any IP at this port (any address to accept incoming messages)
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    // the "htons" convert the port to network endian (big endian)
-    serverAddress.sin_port = htons(port);
-
     // Often the activation of the method bind() falls with the message "Address already in use".
     int yes = 1;
-    if (setsockopt(chatSocket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1)
+    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1)
     {
         perror("setsockopt");
         return -1;
     }
 
-    // Link an address and port with a socket is carried out by the method bind().
-    int bindResult = bind(chatSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    int bindResult = 0;
+
+    if (ipType == AF_INET)
+    {
+        memset(&serverAddressIPv4, 0, sizeof(serverAddressIPv4));
+        serverAddressIPv4.sin_family = ipType;
+        serverAddressIPv4.sin_addr.s_addr = INADDR_ANY;
+        serverAddressIPv4.sin_port = htons(port);
+        bindResult = bind(serverSocket, (struct sockaddr *)&serverAddressIPv4, sizeof(serverAddressIPv4));
+    }
+    else if (ipType == AF_INET6)
+    {
+        memset(&serverAddressIPv6, 0, sizeof(serverAddressIPv6));
+        serverAddressIPv6.sin6_family = ipType;
+        serverAddressIPv6.sin6_port = htons(port);
+        bindResult = bind(serverSocket, (struct sockaddr *)&serverAddressIPv6, sizeof(serverAddressIPv6));
+    }
+    else if (ipType == AF_UNIX)
+    {
+        memset(&serverAddressUDS, 0, sizeof(serverAddressUDS));
+        serverAddressUDS.sun_family = ipType;
+        strncpy(serverAddressUDS.sun_path, UDS_PATH, sizeof(serverAddressUDS.sun_path) - 1);
+        unlink(UDS_PATH);
+        bindResult = bind(serverSocket, (struct sockaddr *)&serverAddressUDS, sizeof(serverAddressUDS));
+    }
+
     // On success, zero is returned.  On error, -1 is returned, and errno is set appropriately.
     if (bindResult == -1)
     {
@@ -148,13 +92,21 @@ int startServer2(int port, int quiet)
         return -1;
     }
 
-    int listenResult = listen(chatSocket, 1);
-    if (listenResult == -1)
+    if (!isUDP && listen(serverSocket, 1) == -1)
     {
         printf("listen() failed with error code : %d\n", errno);
         return -1;
     }
     printf("The server is listening...\n\n");
+    return serverSocket;
+}
+
+int startChatServer(int port)
+{
+    // create a TCP Connection
+    int chatSocket = createServerSocket(port, AF_INET, 0);
+    if (chatSocket == -1)
+        return -1;
 
     // infinite loop for the incoming requests
     while (1)
@@ -175,34 +127,6 @@ int startServer2(int port, int quiet)
         }
         printf("The server is conected\n");
 
-        // getting the type and param comunication
-        char buffer[10] = {0};
-        if (recv(clientSocket, buffer, BUFFER_SIZE, 0) < 0)
-        {
-            perror("recv() failed");
-            return -1;
-        }
-        char *type;
-        size_t i = 0;
-        while (buffer != '_')
-        {
-            type[i] = buffer[i];
-            // buffer++;
-            i++;
-        }
-        type[i] = 0;
-        char *param;
-        i = 0;
-        while (buffer != 0)
-        {
-            param[i] = buffer[i];
-            // buffer++;
-            i++;
-        }
-        param[i] = 0;
-
-        // open a socket
-
         int nfds = 2;
         struct pollfd pfds[2];
         // save the stdin file in the poll file descriptor
@@ -218,7 +142,7 @@ int startServer2(int port, int quiet)
             poll(pfds, nfds, -1);
             if (pfds[0].revents & POLLIN)
             {
-                int result = got_user_input(&clientSocket);
+                int result = got_user_input(clientSocket);
                 if (result == -1)
                 {
                     printf("got_user_input() failed\n");
@@ -229,7 +153,7 @@ int startServer2(int port, int quiet)
             }
             if (pfds[1].revents & POLLIN)
             {
-                int result = got_client_input(&clientSocket);
+                int result = got_client_input(clientSocket);
                 if (result == -1)
                 {
                     printf("got_client_input() failed\n");
@@ -246,255 +170,210 @@ int startServer2(int port, int quiet)
     return 0;
 }
 
-int startServerPerformance(int port, char *type, char *param, int quiet)
+int startInfoServer(int port, int quiet)
 {
-    int ipType = 0;
-    // int sock;
-    int isUDP = 0;
-    char *typeToPrint;
-    if (!strcmp(type, "ipv4") && !strcmp(param, "tcp"))
-    {
-        ipType = AF_INET;
-        // sock = socket(AF_INET, SOCK_STREAM, 0);
-        typeToPrint = "ipv4_tcp";
-    }
-    else if (!strcmp(type, "ipv4") && !strcmp(param, "udp"))
-    {
-        // sock = socket(AF_INET, SOCK_DGRAM, 0);
-        ipType = AF_INET;
-        isUDP = 1;
-        typeToPrint = "ipv4_udp";
-    }
-    else if (!strcmp(type, "ipv6") && !strcmp(param, "tcp"))
-    {
-        ipType = AF_INET6;
-        // sock = socket(AF_INET6, SOCK_STREAM, 0);
-        typeToPrint = "ipv6_tcp";
-    }
-    else if (!strcmp(type, "ipv6") && !strcmp(param, "udp"))
-    {
-        ipType = AF_INET6;
-        // sock = socket(AF_INET6, SOCK_DGRAM, 0);
-        isUDP = 1;
-        typeToPrint = "ipv6_udp";
-    }
-    else if (!strcmp(type, "uds") && !strcmp(param, "dgram"))
-    {
-        ipType = AF_UNIX;
-        // sock = socket(AF_UNIX, SOCK_DGRAM, 0);
-        isUDP = 1;
-        typeToPrint = "uds_dgram";
-    }
-    else if (!strcmp(type, "uds") && !strcmp(param, "stream"))
-    {
-        ipType = AF_UNIX;
-        // sock = socket(AF_UNIX, SOCK_STREAM, 0);
-        typeToPrint = "uds_stream";
-    }
-    else if (!strcmp(type, "mmap"))
-    {
-        typeToPrint = "mmap";
-    }
-    else if (!strcmp(type, "pipe"))
-    {
-        typeToPrint = "pipe";
-    }
-    else
-    {
-        printf("only the following types and params are allowed:\n");
-        printf("ipv4 tcp\n");
-        printf("ipv4 udp\n");
-        printf("ipv6 tcp\n");
-        printf("ipv6 udp\n");
-        printf("uds dgram\n");
-        printf("uds stream\n");
-        printf("mmap [filename]\n");
-        printf("pipe [filename]\n");
+    // create a TCP Connection
+    int infoSocket = createServerSocket(port, AF_INET, 0);
+    if (infoSocket == -1)
         return -1;
-    }
-    // if (sock == -1)
-    // {
-    //     perror("socket() failed");
-    //     return 1;
-    // }
-    // receiveFile(sock, isUDP, port, quiet, typeToPrint);
-    return receiveFile2(isUDP, ipType, port, quiet, typeToPrint);
-}
 
-int receiveFile2(int isUDP, int ipType, int port, int quiet, char *typeToPrint)
-{
-    int sock;
-    if (isUDP)
-        sock = socket(ipType, SOCK_DGRAM, IPPROTO_UDP);
-    else
-        sock = socket(ipType, SOCK_STREAM, IPPROTO_TCP);
-
-    if (sock == -1)
-    {
-        perror("socket() failed");
-        return -1;
-    }
-
-    struct sockaddr_in Address;
-    memset(&Address, 0, sizeof(Address));
-
-    Address.sin_family = ipType;
-    Address.sin_addr.s_addr = INADDR_ANY;
-    Address.sin_port = htons(port);
-
-    int enable = 1;
-    setsockopt(sock, IPPROTO_IP, IP_HDRINCL,
-               &enable, sizeof(enable));
-
-    int bindResult = bind(sock, (struct sockaddr *)&Address, sizeof(Address));
-    if (bindResult == -1)
-    {
-        perror("bind() failed");
-        close(sock);
-        return -1;
-    }
-    if (!isUDP && listen(sock, 1) == -1)
-    {
-        perror("listen() failed");
-        close(sock);
-        return -1;
-    }
-
+    // infinite loop for the incoming requests
     while (1)
     {
-        // accept incoming connection
-        printf("Waiting for connections...\n");
-        struct sockaddr_in senderAddress; //
-        socklen_t senderAddressLen = sizeof(senderAddress);
-        memset(&senderAddress, 0, sizeof(senderAddress));
-        senderAddressLen = sizeof(senderAddress);
+        printf("Waiting for a client to connect...\n\n");
+        // accept and incoming connection:
+        struct sockaddr_in clientAddress;
+        socklen_t clientAddressLen = sizeof(clientAddress);
 
-        int senderSocket;
-        if (!isUDP)
-        {
-            senderSocket = accept(sock, (struct sockaddr *)&senderAddress, &senderAddressLen);
-            if (senderSocket == -1)
-            {
-                perror("accept() failed");
-                close(sock);
-                return -1;
-            }
-            printf("client connection accepted\n");
-        }
-        struct timeval start, end;
-        gettimeofday(&start, NULL);
-        FILE *fd = fopen("received.txt", "w");
-        char buffer[BUFFER_SIZE];
-        // char buffer[BUFFER_SIZE] = {0};
-        size_t n = 0;
-        while (n < FILE_SIZE)
-        {
-            if (isUDP)
-            {
-                if ((n += recvfrom(sock, buffer, BUFFER_SIZE, 0,
-                                   (struct sockaddr *)&senderAddress, &senderAddressLen)) < 0)
-                {
+        memset(&clientAddress, 0, sizeof(clientAddress));
+        clientAddressLen = sizeof(clientAddress);
 
-                    perror("recv() failed");
-                    return -1;
-                }
-            }
-            else
-            {
-                if ((n += recv(senderSocket, buffer, BUFFER_SIZE, 0)) < 0)
-                {
-                    perror("recv() failed");
-                    return -1;
-                }
-            }
-            fprintf(fd, "%s", buffer);
-            // printf("%s", buffer);
-            printf("%ld\n", n);
-            printf("%ld\n", strlen(buffer));
-        }
-
-        gettimeofday(&end, NULL);
-        // measuring the time to it took to receive the message
-        double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-        // double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec);
-
-        if (quiet)
-        {
-            printf("%s, %f\n", typeToPrint, timeDelta);
-        }
-        fclose(fd);
-        close(senderSocket);
-        printf("\n");
-    }
-}
-
-int receiveFile(int sock, int isUDP, int port, int quiet, char *typeToPrint)
-{
-    struct sockaddr_in Address;
-    memset(&Address, 0, sizeof(Address));
-
-    Address.sin_family = AF_INET;
-    Address.sin_addr.s_addr = INADDR_ANY;
-    Address.sin_port = htons(port);
-
-    int bindResult = bind(sock, (struct sockaddr *)&Address, sizeof(Address));
-    if (bindResult == -1)
-    {
-        perror("bind() failed");
-        close(sock);
-        return -1;
-    }
-    if (!isUDP && listen(sock, 1) == -1)
-    {
-        perror("listen() failed");
-        close(sock);
-        return -1;
-    }
-    while (1)
-    {
-        // accept incoming connection
-        printf("Waiting for connections...\n");
-        struct sockaddr_in senderAddress; //
-        socklen_t senderAddressLen = sizeof(senderAddress);
-        memset(&senderAddress, 0, sizeof(senderAddress));
-        senderAddressLen = sizeof(senderAddress);
-        int senderSocket = accept(sock, (struct sockaddr *)&senderAddress, &senderAddressLen);
-        if (senderSocket == -1)
+        int clientChatSocket = accept(infoSocket, (struct sockaddr *)&clientAddress, &clientAddressLen);
+        if (clientChatSocket == -1)
         {
             perror("accept() failed");
-            close(sock);
             return -1;
         }
-        printf("client connection accepted\n");
+        printf("The server is conected\n");
 
         struct timeval start, end;
-        gettimeofday(&start, NULL);
-        FILE *fd = fopen("received.txt", "a");
-        char buffer[BUFFER_SIZE] = {0};
-        size_t n = 0;
-        while (n < FILE_SIZE)
+        FILE *fd = fopen("received.txt", "w");
+        char buffer[BUFFER_SIZE];
+
+        // getting the type and param comunication
+        int ipType, isUDP;
+        char typeToPrint[50];
+        if (recv(clientChatSocket, &ipType, sizeof(int), 0) < 0)
         {
-            if ((n += recv(senderSocket, buffer, BUFFER_SIZE, 0)) < 0)
+            perror("recv() failed");
+            return -1;
+        }
+        if (recv(clientChatSocket, &isUDP, sizeof(int), 0) < 0)
+        {
+            perror("recv() failed");
+            return -1;
+        }
+        if (recv(clientChatSocket, typeToPrint, 50, 0) < 0)
+        {
+            perror("recv() failed");
+            return -1;
+        }
+        // getting the hash
+        unsigned long clientHash;
+        if (recv(clientChatSocket, &clientHash, sizeof(clientHash), 0) < 0)
+        {
+            perror("recv() failed");
+            return -1;
+        }
+
+        if (ipType == PIPE)
+        {
+            char filename[50];
+            if (recv(clientChatSocket, filename, 50, 0) < 0)
             {
                 perror("recv() failed");
+                close(clientChatSocket);
+                fclose(fd);
                 return -1;
             }
-            // if (!strcmp(buffer, "exit"))
-            // {
-            //     printTimes(times);
-            //     return 0;
-            // }
-            fprintf(fd, "%s", buffer);
+            gettimeofday(&start, NULL);
+            if (createServerPipe(fd, filename) == -1)
+            {
+                close(clientChatSocket);
+                return -1;
+            }
+            gettimeofday(&end, NULL);
+            double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+            printf("%s, %f\n",typeToPrint,timeDelta);
+            close(clientChatSocket);
+            continue;
         }
-        gettimeofday(&end, NULL);
-        if (quiet)
+
+        int newPort = 12000;
+        if (port == 12000)
+            newPort = 13000;
+        int dataSocket = createServerSocket(newPort, ipType, isUDP);
+        if (dataSocket == -1)
         {
-            printf("%s\n", typeToPrint);
+            close(clientChatSocket);
+            close(infoSocket);
+            return -1;
         }
+        int clientDataSocket;
+        struct sockaddr_in clientDataAddressIPv4;
+        struct sockaddr_in6 clientDataAddressIPv6;
+        struct sockaddr_un clientDataAddressUDS;
+        socklen_t clientDataAddressLenIPv4 = sizeof(clientDataAddressIPv4);
+        socklen_t clientDataAddressLenIPv6 = sizeof(clientDataAddressIPv6);
+        socklen_t clientDataAddressLenUDS = sizeof(clientDataAddressLenUDS);
+
+        memset(&clientDataAddressIPv4, 0, sizeof(clientDataAddressIPv4));
+        memset(&clientDataAddressIPv6, 0, sizeof(clientDataAddressIPv6));
+        memset(&clientDataAddressLenUDS, 0, sizeof(clientDataAddressLenUDS));
+
+        if (isUDP)
+        {
+            clientDataSocket = dataSocket;
+        }
+        else
+        {
+            if (ipType == AF_INET)
+                clientDataSocket = accept(dataSocket, (struct sockaddr *)&clientDataAddressIPv4, &clientDataAddressLenIPv4);
+            else if (ipType == AF_INET6)
+                clientDataSocket = accept(dataSocket, (struct sockaddr *)&clientDataAddressIPv6, &clientDataAddressLenIPv6);
+            else if (ipType == AF_UNIX)
+                clientDataSocket = accept(dataSocket, (struct sockaddr *)&clientDataAddressUDS, &clientDataAddressLenUDS);
+            if (clientDataSocket == -1)
+            {
+                perror("accept() failed");
+                return -1;
+            }
+            printf("The server is conected\n");
+        }
+
+        int nfds = 2;
+        struct pollfd pfds[2];
+        // save the stdin file in the poll file descriptor
+        pfds[0].fd = clientChatSocket;
+        pfds[0].events = POLLIN;
+        pfds[1].fd = clientDataSocket;
+        pfds[1].events = POLLIN;
+
+        int bytesReveived = 0;
+        printf("Receiving the: \n");
+        while (1)
+        {
+            printf("Receiving the file: \n");
+
+            poll(pfds, nfds, -1);
+            if (pfds[0].revents & POLLIN)
+            {
+                // int result = got_chat_input(clientChatSocket);
+                // if (result == -1)
+                // {
+                //     printf("got_chat_input() failed\n");
+                //     break;
+                // }
+                // else if (result == 1)
+                //     break;
+                char chatBuffer[20];
+                if (recv(clientChatSocket, chatBuffer, 20, 0) < 0)
+                {
+                    perror("recv() failed");
+                    return -1;
+                }
+                if (!strcmp(chatBuffer, "start"))
+                    gettimeofday(&start, NULL);
+                if (!strcmp(chatBuffer, "exit"))
+                {
+                    gettimeofday(&end, NULL);
+                    double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
+
+                    // unsigned long receivedHash = hash(fd);
+                    // if (receivedHash == clientHash)
+                    //     printf("hash OK\n");
+                    // else
+                    //     printf("hash not OK\n");
+
+                    printf("%s, %f\n", typeToPrint, timeDelta);
+                    break;
+                }
+                printf("%s\n", chatBuffer);
+            }
+            if (pfds[1].revents & POLLIN)
+            {
+                // int result = got_data_input(clientDataSocket, buffer, &clientDataAddress, &clientDataAddressLen);
+                // if (result == -1)
+                // {
+                //     printf("got_data_input() failed\n");
+                //     break;
+                // }
+                // printf("%s\n", buffer);
+                // else if (result == 1)
+                //     break;
+                int n = 0;
+                if (ipType == AF_INET)
+                    n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&clientDataAddressIPv4, &clientDataAddressLenIPv4);
+                else if (ipType == AF_INET6)
+                    n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&clientDataAddressIPv6, &clientDataAddressLenIPv6);
+                else if (ipType == AF_UNIX)
+                {
+                    if (isUDP)
+                        n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&clientDataAddressUDS, &clientDataAddressLenUDS);
+                    else
+                        n = recv(clientDataSocket, buffer, BUFFER_SIZE, 0);
+                }
+
+                printf("received %d bytes\n", n);
+                fwrite(buffer, n, 1, fd);
+                bytesReveived += n;
+            }
+        }
+        close(dataSocket);
+        if (ipType == AF_UNIX)
+            unlink(UDS_PATH);
         fclose(fd);
-        close(senderSocket);
-        printf("\n");
     }
-    close(sock);
+    close(infoSocket);
     return 0;
 }
