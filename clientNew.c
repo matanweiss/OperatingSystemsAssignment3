@@ -1,5 +1,32 @@
 #include "communications.h"
 
+int createClientSocketUDS(char *ip, int port, int ipType, int isUDP, struct sockaddr_un *Address)
+{
+    int sock;
+    if (isUDP)
+        sock = socket(ipType, SOCK_DGRAM, 0);
+    else
+        sock = socket(ipType, SOCK_STREAM, 0);
+
+    if (sock == -1)
+    {
+        perror("socket() failed");
+        return -1;
+    }
+    memset(Address, 0, sizeof(struct sockaddr_un));
+    Address->sun_family = ipType;
+    strncpy(Address->sun_path, UDS_PATH, sizeof(Address->sun_path) - 1);
+    // unlink(UDS_PATH);
+    if (!isUDP && connect(sock, (struct sockaddr *)Address, sizeof(struct sockaddr_un)) == -1)
+    {
+        perror("connect() failed");
+        close(sock);
+        return -1;
+    }
+    printf("connected to receiver\n");
+    return sock;
+}
+
 int createClientSocketIPv6(char *ip, int port, int ipType, int isUDP, struct sockaddr_in6 *Address)
 {
     int sock;
@@ -152,7 +179,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     // hash_file(fd, hash);
     send(clientSocket, hash, sizeof(MD5_DIGEST_LENGTH), 0);
 
-    // sleep(0.5);
+    sleep(1);
 
     // creating the data socket
     int newPort = 12000;
@@ -161,23 +188,17 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     int senderSocket = 0;
     struct sockaddr_in6 dataAddressIPv6;
     struct sockaddr_in dataAddressIPv4;
+    struct sockaddr_un dataAddressUDS;
     if (ipType == AF_INET)
-    {
         senderSocket = createClientSocketIPv4(ip, newPort, ipType, isUDP, &dataAddressIPv4);
-        if (senderSocket == -1)
-        {
-            close(clientSocket);
-            return -1;
-        }
-    }
     else if (ipType == AF_INET6)
-    {
         senderSocket = createClientSocketIPv6(ip, newPort, ipType, isUDP, &dataAddressIPv6);
-        if (senderSocket == -1)
-        {
-            close(clientSocket);
-            return -1;
-        }
+    else if (ipType == AF_UNIX)
+        senderSocket = createClientSocketUDS(ip, newPort, ipType, isUDP, &dataAddressUDS);
+    if (senderSocket == -1)
+    {
+        close(clientSocket);
+        return -1;
     }
 
     send(clientSocket, "start", 6, 0);
@@ -187,21 +208,22 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     {
         int res = fread(buffer, 1, BUFFER_SIZE, fd);
         // message[BUFFER_SIZE - 1] = 0;
+        int bytesSent = 0;
         if (ipType == AF_INET)
-        {
-            if (0 >= sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, (struct sockaddr *)&dataAddressIPv4, sizeof(dataAddressIPv4)))
-            {
-                perror("send() failed");
-                return -1;
-            }
-        }
+            bytesSent = sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, (struct sockaddr *)&dataAddressIPv4, sizeof(dataAddressIPv4));
         else if (ipType == AF_INET6)
+            bytesSent = sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, (struct sockaddr *)&dataAddressIPv6, sizeof(dataAddressIPv6));
+        else if (ipType == AF_UNIX)
         {
-            if (0 >= sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, (struct sockaddr *)&dataAddressIPv6, sizeof(dataAddressIPv6)))
-            {
-                perror("send() failed");
-                return -1;
-            }
+            if (isUDP)
+                bytesSent = sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, (struct sockaddr *)&dataAddressUDS, sizeof(dataAddressUDS));
+            else
+                bytesSent = send(senderSocket, buffer, BUFFER_SIZE, 0);
+        }
+        if (0 >= bytesSent)
+        {
+            perror("sendto() failed");
+            return -1;
         }
         bzero(buffer, BUFFER_SIZE);
         printf("res: %d, i: %ld\n", res, i);

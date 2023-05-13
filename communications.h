@@ -21,6 +21,7 @@
 #include <openssl/md5.h>
 #include <sys/un.h>
 
+#define UDS_PATH "/tmp/uds2"
 #define FILE_SIZE 1024 * 1024 * 100
 #define BUFFER_SIZE 1024
 
