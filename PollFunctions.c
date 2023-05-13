@@ -65,10 +65,10 @@ int got_data_input(int socket, char buffer [BUFFER_SIZE], struct sockaddr * clie
     return 0;
 }
 
-int got_chat_input(int)
-{
-    return 0;
-}
+// int got_chat_input(int)
+// {
+//     return 0;
+// }
 
 // int hash_file(FILE *fd, unsigned char *hash)
 // {

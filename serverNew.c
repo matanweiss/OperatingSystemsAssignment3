@@ -218,14 +218,23 @@ int startInfoServer(int port, int quiet)
             poll(pfds, nfds, -1);
             if (pfds[0].revents & POLLIN)
             {
-                int result = got_chat_input(clientChatSocket);
-                if (result == -1)
-                {
-                    printf("got_chat_input() failed\n");
-                    break;
-                }
+                // int result = got_chat_input(clientChatSocket);
+                // if (result == -1)
+                // {
+                //     printf("got_chat_input() failed\n");
+                //     break;
+                // }
                 // else if (result == 1)
                 //     break;
+                char buffer[20];
+                if (recv(clientChatSocket, buffer, 20, 0) < 0)
+                {
+                    perror("recv() failed");
+                    return -1;
+                }
+                if (!strcmp(buffer, "exit"))
+                    break;
+                printf("%s\n", buffer);
             }
             if (pfds[1].revents & POLLIN)
             {

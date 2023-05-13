@@ -39,7 +39,7 @@ int hash_file(FILE *fd, unsigned char *hash);
 int got_user_input(int);
 int got_client_input(int);
 
-int got_chat_input(int);
+// int got_chat_input(int);
 int got_data_input(int socket, char buffer [BUFFER_SIZE], struct sockaddr * clientAddress, socklen_t * lenAddress);
 
 int startServer2(int, int);

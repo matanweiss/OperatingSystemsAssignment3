@@ -144,7 +144,9 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     // {
 
     // }
-
+    send(clientSocket, "exit", 5, 0);
+    close(clientSocket);
+    close(senderSocket);
     return 0;
 }
 
