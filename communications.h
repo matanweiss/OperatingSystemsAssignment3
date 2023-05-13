@@ -31,24 +31,24 @@
 #define PIPE 6
 
 int createServerSocket(int port, int ipType, int isUDP);
+int createServerPipe(FILE *fd, char *filename);
+int createServerMmap(char* param);
+int startChatServer(int port);
+int startInfoServer(int port, int quiet);
+
 int createClientSocketIPv4(char *ip, int port, int ipType, int isUDP, struct sockaddr_in *Address);
 int createClientSocketIPv6(char *ip, int port, int ipType, int isUDP, struct sockaddr_in6 *Address);
 int createClientPipe(FILE *fd, char *param);
-int createServerPipe(FILE *fd, char *filename);
 int createClientMmap(char* param);
-int createServerMmap(char* param);
 int startChatClient(char *ip, int port);
-int startChatServer(int port);
-
 int startInfoClient(char *ip, int port, char *type, char *param);
-int startInfoServer(int port, int quiet);
+
 
 int checkPerformance(char *type, char *param, int *ipType, int *isUDP, char *typeToPrint);
 
 int got_user_input(int);
 int got_client_input(int);
 
-// int got_chat_input(int);
 int got_data_input(int socket, char buffer[BUFFER_SIZE], struct sockaddr *clientAddress, socklen_t *lenAddress);
 
 unsigned long hash(FILE *str);
