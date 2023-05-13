@@ -2,7 +2,8 @@
 
 int createServerSocket(int port, int ipType, int isUDP)
 {
-    struct sockaddr_in serverAddress;
+    struct sockaddr_in serverAddressIPv4;
+    struct sockaddr_in6 serverAddressIPv6;
     int serverSocket;
     if (isUDP)
         serverSocket = socket(ipType, SOCK_DGRAM, IPPROTO_UDP);
@@ -16,16 +17,6 @@ int createServerSocket(int port, int ipType, int isUDP)
         return -1;
     }
 
-    // the "memset" function copies the character "\0"
-    memset(&serverAddress, 0, sizeof(serverAddress));
-
-    // AF_INET is an Address Family that is Internet Protocol IPv4 addresses
-    serverAddress.sin_family = AF_INET;
-    // any IP at this port (any address to accept incoming messages)
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    // the "htons" convert the port to network endian (big endian)
-    serverAddress.sin_port = htons(port);
-
     // Often the activation of the method bind() falls with the message "Address already in use".
     int yes = 1;
     if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1)
@@ -34,8 +25,24 @@ int createServerSocket(int port, int ipType, int isUDP)
         return -1;
     }
 
-    // Link an address and port with a socket is carried out by the method bind().
-    int bindResult = bind(serverSocket, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    int bindResult = 0;
+
+    if (ipType == AF_INET)
+    {
+        memset(&serverAddressIPv4, 0, sizeof(serverAddressIPv4));
+        serverAddressIPv4.sin_family = ipType;
+        serverAddressIPv4.sin_addr.s_addr = INADDR_ANY;
+        serverAddressIPv4.sin_port = htons(port);
+        bindResult = bind(serverSocket, (struct sockaddr *)&serverAddressIPv4, sizeof(serverAddressIPv4));
+    }
+    else if (ipType == AF_INET6)
+    {
+        memset(&serverAddressIPv6, 0, sizeof(serverAddressIPv6));
+        serverAddressIPv6.sin6_family = ipType;
+        serverAddressIPv6.sin6_port = htons(port);
+        bindResult = bind(serverSocket, (struct sockaddr *)&serverAddressIPv6, sizeof(serverAddressIPv6));
+    }
+
     // On success, zero is returned.  On error, -1 is returned, and errno is set appropriately.
     if (bindResult == -1)
     {
@@ -261,9 +268,9 @@ int startInfoServer(int port, int quiet)
                 // else if (result == 1)
                 //     break;
 
-                int n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE,MSG_WAITALL, ( struct sockaddr*)&clientDataAddress, &clientDataAddressLen);
-                printf("received %d bytes\n",n);
-                fwrite(buffer,n,1,fd);
+                int n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr *)&clientDataAddress, &clientDataAddressLen);
+                printf("received %d bytes\n", n);
+                fwrite(buffer, n, 1, fd);
                 bytesReveived += n;
             }
         }

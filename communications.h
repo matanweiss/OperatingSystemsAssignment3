@@ -24,7 +24,8 @@
 #define BUFFER_SIZE 1024
 
 int createServerSocket(int port, int ipType, int isUDP);
-int createClientSocket(char *ip, int port, int ipType, int isUDP,struct sockaddr_in * Address);
+int createClientSocketIPv4(char *ip, int port, int ipType, int isUDP, struct sockaddr_in *Address);
+int createClientSocketIPv6(char *ip, int port, int ipType, int isUDP, struct sockaddr_in6 *Address);
 
 
 int startChatClient(char *ip, int port);
@@ -34,7 +35,7 @@ int startInfoClient(char *ip, int port, char *type, char *param);
 int startInfoServer(int port, int quiet);
 
 int checkPerformance(char *type, char *param, int *ipType, int *isUDP, char *typeToPrint);
-int hash_file(FILE *fd, unsigned char *hash);
+// int hash_file(FILE *fd, unsigned char *hash);
 
 int got_user_input(int);
 int got_client_input(int);

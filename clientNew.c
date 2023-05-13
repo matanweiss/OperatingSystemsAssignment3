@@ -1,6 +1,39 @@
 #include "communications.h"
 
-int createClientSocket(char *ip, int port, int ipType, int isUDP, struct sockaddr_in *Address)
+int createClientSocketIPv6(char *ip, int port, int ipType, int isUDP, struct sockaddr_in6 *Address)
+{
+    printf("hi\n");
+    int sock;
+    if (isUDP)
+        sock = socket(ipType, SOCK_DGRAM, IPPROTO_UDP);
+    else
+        sock = socket(ipType, SOCK_STREAM, IPPROTO_TCP);
+
+    if (sock == -1)
+    {
+        perror("socket() failed");
+        return -1;
+    }
+    memset(Address, 0, sizeof(struct sockaddr_in6));
+    Address->sin6_family = ipType;
+    Address->sin6_port = htons(port);
+    if (inet_pton(ipType, (const char *)ip, &Address->sin6_addr) <= 0)
+    {
+        printf("%s\n", ip);
+        perror("inet_pton() failed");
+        return -1;
+    }
+    if (!isUDP && connect(sock, (struct sockaddr *)Address, sizeof(struct sockaddr_in6)) == -1)
+    {
+        perror("connect() failed");
+        close(sock);
+        return -1;
+    }
+    printf("connected to receiver\n");
+    return sock;
+}
+
+int createClientSocketIPv4(char *ip, int port, int ipType, int isUDP, struct sockaddr_in *Address)
 {
     int sock;
     if (isUDP)
@@ -14,7 +47,6 @@ int createClientSocket(char *ip, int port, int ipType, int isUDP, struct sockadd
         return -1;
     }
     memset(Address, 0, sizeof(struct sockaddr_in));
-
     Address->sin_family = ipType;
     Address->sin_port = htons(port);
     if (inet_pton(ipType, (const char *)ip, &Address->sin_addr) <= 0)
@@ -23,6 +55,7 @@ int createClientSocket(char *ip, int port, int ipType, int isUDP, struct sockadd
         perror("inet_pton() failed");
         return -1;
     }
+
     // connect to receiver
     if (!isUDP && connect(sock, (struct sockaddr *)Address, sizeof(struct sockaddr_in)) == -1)
     {
@@ -41,7 +74,7 @@ int startChatClient(char *ip, int port)
     printf("starting the client\n");
     // creating a new socket
     struct sockaddr_in Address;
-    int clientSocket = createClientSocket(ip, port, AF_INET, 0, &Address);
+    int clientSocket = createClientSocketIPv4(ip, port, AF_INET, 0, &Address);
     if (clientSocket == -1)
         return -1;
 
@@ -91,7 +124,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     printf("starting the client\n");
     // creating the info socket
     struct sockaddr_in chatAddress;
-    int clientSocket = createClientSocket(ip, port, AF_INET, 0, &chatAddress);
+    int clientSocket = createClientSocketIPv4("127.0.0.1", port, AF_INET, 0, &chatAddress);
     if (clientSocket == -1)
         return -1;
 
@@ -126,12 +159,26 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     int newPort = 12000;
     if (port == 12000)
         newPort = 13000;
-    struct sockaddr_in dataAddress;
-    int senderSocket = createClientSocket(ip, newPort, ipType, isUDP, &dataAddress);
-    if (senderSocket == -1)
+    int senderSocket = 0;
+    struct sockaddr_in6 dataAddressIPv6;
+    struct sockaddr_in dataAddressIPv4;
+    if (ipType == AF_INET)
     {
-        close(clientSocket);
-        return -1;
+        senderSocket = createClientSocketIPv4(ip, newPort, ipType, isUDP, &dataAddressIPv4);
+        if (senderSocket == -1)
+        {
+            close(clientSocket);
+            return -1;
+        }
+    }
+    else if (ipType == AF_INET6)
+    {
+        senderSocket = createClientSocketIPv6(ip, newPort, ipType, isUDP, &dataAddressIPv6);
+        if (senderSocket == -1)
+        {
+            close(clientSocket);
+            return -1;
+        }
     }
 
     send(clientSocket, "start", 6, 0);
@@ -141,12 +188,22 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     {
         int res = fread(buffer, 1, BUFFER_SIZE, fd);
         // message[BUFFER_SIZE - 1] = 0;
-        if (0 >= sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, ( struct sockaddr*)&dataAddress, sizeof(dataAddress)))
+        if (ipType == AF_INET)
         {
-            perror("send() failed");
-            return -1;
+            if (0 >= sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, (struct sockaddr *)&dataAddressIPv4, sizeof(dataAddressIPv4)))
+            {
+                perror("send() failed");
+                return -1;
+            }
         }
-        printf("hi\n");
+        else if (ipType == AF_INET6)
+        {
+            if (0 >= sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, (struct sockaddr *)&dataAddressIPv6, sizeof(dataAddressIPv6)))
+            {
+                perror("send() failed");
+                return -1;
+            }
+        }
         bzero(buffer, BUFFER_SIZE);
         printf("res: %d, i: %ld\n", res, i);
     }
