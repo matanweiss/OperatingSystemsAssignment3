@@ -184,7 +184,7 @@ int startInfoServer(int port, int quiet)
             return -1;
         }
         int clientDataSocket;
-        struct sockaddr clientDataAddress;
+        struct sockaddr_in clientDataAddress;
         socklen_t clientDataAddressLen = sizeof(clientDataAddress);
 
         memset(&clientDataAddress, 0, sizeof(clientDataAddress));
@@ -212,10 +212,10 @@ int startInfoServer(int port, int quiet)
         pfds[1].fd = clientDataSocket;
         pfds[1].events = POLLIN;
 
-        // char message[BUFFER_SIZE];
         char buffer[BUFFER_SIZE];
         struct timeval start, end;
-
+        FILE *fd = fopen("received.txt", "w");
+        int bytesReveived = 0;
         printf("Receiving the: \n");
         while (1)
         {
@@ -232,34 +232,39 @@ int startInfoServer(int port, int quiet)
                 // }
                 // else if (result == 1)
                 //     break;
-                char buffer[20];
-                if (recv(clientChatSocket, buffer, 20, 0) < 0)
+                char chatBuffer[20];
+                if (recv(clientChatSocket, chatBuffer, 20, 0) < 0)
                 {
                     perror("recv() failed");
                     return -1;
                 }
-                if (!strcmp(buffer, "start"))
+                if (!strcmp(chatBuffer, "start"))
                     gettimeofday(&start, NULL);
-                if (!strcmp(buffer, "exit"))
+                if (!strcmp(chatBuffer, "exit"))
                 {
                     gettimeofday(&end, NULL);
                     double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
                     printf("%s, %f\n", typeToPrint, timeDelta);
                     break;
                 }
-                printf("%s\n", buffer);
+                printf("%s\n", chatBuffer);
             }
             if (pfds[1].revents & POLLIN)
             {
-                int result = got_data_input(clientDataSocket, buffer, &clientDataAddress, &clientDataAddressLen);
-                if (result == -1)
-                {
-                    printf("got_data_input() failed\n");
-                    break;
-                }
-                printf("%s\n", buffer);
+                // int result = got_data_input(clientDataSocket, buffer, &clientDataAddress, &clientDataAddressLen);
+                // if (result == -1)
+                // {
+                //     printf("got_data_input() failed\n");
+                //     break;
+                // }
+                // printf("%s\n", buffer);
                 // else if (result == 1)
                 //     break;
+
+                int n = recvfrom(clientDataSocket, buffer, BUFFER_SIZE,MSG_WAITALL, ( struct sockaddr*)&clientDataAddress, &clientDataAddressLen);
+                printf("received %d bytes\n",n);
+                fwrite(buffer,n,1,fd);
+                bytesReveived += n;
             }
         }
     }

@@ -97,7 +97,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
 
     int ipType, isUDP;
     char typeToPrint[50];
-    if (checkPerformance(type, param, &ipType, &isUDP,typeToPrint) == -1)
+    if (checkPerformance(type, param, &ipType, &isUDP, typeToPrint) == -1)
         return -1;
     // send the info to the server before we send the 100MB data
     send(clientSocket, &ipType, sizeof(int), 0);
@@ -120,7 +120,7 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     // hash_file(fd, hash);
     send(clientSocket, hash, sizeof(MD5_DIGEST_LENGTH), 0);
 
-    sleep(0.5);
+    // sleep(0.5);
 
     // creating the data socket
     int newPort = 12000;
@@ -135,13 +135,30 @@ int startInfoClient(char *ip, int port, char *type, char *param)
     }
 
     send(clientSocket, "start", 6, 0);
-    char *message = "hi, helpp\n";
-    if (0 >= sendto(senderSocket, message, strlen(message), MSG_CONFIRM, &dataAddress, sizeof(dataAddress)))
+    char buffer[BUFFER_SIZE];
+    fseek(fd, 0, SEEK_SET);
+    for (size_t i = 0; i < FILE_SIZE; i += (BUFFER_SIZE))
     {
-        printf("didnt send the message\n");
-        return -1;
+        int res = fread(buffer, 1, BUFFER_SIZE, fd);
+        // message[BUFFER_SIZE - 1] = 0;
+        if (0 >= sendto(senderSocket, buffer, BUFFER_SIZE, MSG_CONFIRM, ( struct sockaddr*)&dataAddress, sizeof(dataAddress)))
+        {
+            perror("send() failed");
+            return -1;
+        }
+        printf("hi\n");
+        bzero(buffer, BUFFER_SIZE);
+        printf("res: %d, i: %ld\n", res, i);
     }
-    printf("send the message\n");
+    fclose(fd);
+
+    printf("the file has been sent\n");
+    // char *message = "hi, helpp\n";
+    // if (0 >= sendto(senderSocket, message, strlen(message), MSG_CONFIRM, &dataAddress, sizeof(dataAddress)))
+    // {
+    //     printf("didnt send the message\n");
+    //     return -1;
+    // }
     // send the file
     // if (send_file(fd) == -1)
     // {
@@ -162,43 +179,43 @@ int checkPerformance(char *type, char *param, int *ipType, int *isUDP, char *typ
     if (!strcmp(type, "ipv4") && !strcmp(param, "tcp"))
     {
         *(ipType) = AF_INET;
-        strcpy(typeToPrint,"ipv4_tcp");
+        strcpy(typeToPrint, "ipv4_tcp");
     }
     else if (!strcmp(type, "ipv4") && !strcmp(param, "udp"))
     {
         *(ipType) = AF_INET;
         *(isUDP) = 1;
-        strcpy(typeToPrint,"ipv4_udp");
+        strcpy(typeToPrint, "ipv4_udp");
     }
     else if (!strcmp(type, "ipv6") && !strcmp(param, "tcp"))
     {
         *(ipType) = AF_INET6;
-        strcpy(typeToPrint,"ipv6_tcp");
+        strcpy(typeToPrint, "ipv6_tcp");
     }
     else if (!strcmp(type, "ipv6") && !strcmp(param, "udp"))
     {
         *(ipType) = AF_INET6;
         *(isUDP) = 1;
-        strcpy(typeToPrint,"ipv6_udp");
+        strcpy(typeToPrint, "ipv6_udp");
     }
     else if (!strcmp(type, "uds") && !strcmp(param, "dgram"))
     {
         *(ipType) = AF_UNIX;
         *(isUDP) = 1;
-        strcpy(typeToPrint,"uds_dgram");
+        strcpy(typeToPrint, "uds_dgram");
     }
     else if (!strcmp(type, "uds") && !strcmp(param, "stream"))
     {
         *(ipType) = AF_UNIX;
-        strcpy(typeToPrint,"uds_stream");
+        strcpy(typeToPrint, "uds_stream");
     }
     else if (!strcmp(type, "mmap"))
     {
-        strcpy(typeToPrint,"mmap");
+        strcpy(typeToPrint, "mmap");
     }
     else if (!strcmp(type, "pipe"))
     {
-        strcpy(typeToPrint,"pipe");
+        strcpy(typeToPrint, "pipe");
     }
     else
     {
