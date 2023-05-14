@@ -280,7 +280,7 @@ int startInfoServer(int port, int quiet)
             }
             gettimeofday(&end, NULL);
             double timeDelta = (end.tv_sec - 1 - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-            printf("%s, %f\n", typeToPrint, timeDelta);
+            printf("%s, %f\n", typeToPrint, timeDelta*1000);
             close(clientChatSocket);
             continue;
         }
@@ -304,7 +304,7 @@ int startInfoServer(int port, int quiet)
             }
             gettimeofday(&end, NULL);
             double timeDelta = (end.tv_sec - 1 - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-            printf("%s, %f\n", typeToPrint, timeDelta);
+            printf("%s, %f\n", typeToPrint, timeDelta*1000);
             close(clientChatSocket);
             continue;
         }
@@ -377,7 +377,7 @@ int startInfoServer(int port, int quiet)
                 {
                     gettimeofday(&end, NULL);
                     double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-                    printf("%s, %f\n", typeToPrint, timeDelta);
+                    printf("%s, %f\n", typeToPrint, timeDelta*1000);
                     break;
                 }
             }
@@ -402,7 +402,7 @@ int startInfoServer(int port, int quiet)
                 {
                     gettimeofday(&end, NULL);
                     double timeDelta = (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) / 1000000.0;
-                    printf("%s, %f\n", typeToPrint, timeDelta);
+                    printf("%s, %f\n", typeToPrint, timeDelta*1000);
                     break;
                 }
             }
